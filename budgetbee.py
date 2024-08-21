@@ -3,8 +3,7 @@ from datetime import datetime
 from matplotlib import pyplot as plt
 
 class Transaction:
-    def __init__(self, account, amount, category, date = None):
-        self.account = account
+    def __init__(self, amount, category, date = None):
         self.amount = amount
         self.category = category
         self.date = date or datetime.now()
@@ -18,8 +17,7 @@ class BudgetTracker:
         with self.conn:
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS transactions (
-                    id INTEGER PRIMARY KEY, 
-                    account TEXT,
+                    id INTEGER PRIMARY KEY,
                     amount REAL, 
                     category TEXT, 
                     date TEXT
@@ -32,10 +30,10 @@ class BudgetTracker:
                 )
             """)
     
-    def add_transaction(self, account, amount, category, date):
+    def add_transaction(self, amount, category, date):
         with self.conn:
-            self.conn.execute("INSERT INTO transactions (account, amount, category, date) VALUES(?, ?, ?, ?)",
-                (account, amount, category, date.isoformat()))
+            self.conn.execute("INSERT INTO transactions (amount, category, date) VALUES(?, ?, ?)",
+                (amount, category, date.isoformat()))
     
     def set_budget(self, category, budget_limit):
         with self.conn:
@@ -47,9 +45,13 @@ class BudgetTracker:
     
     def get_transactions_by_date_range(self, start_date, end_date):
         with self.conn:
-            start_date_str = start_date.isoformat()
-            end_date_str = end_date.isoformat()
-            return self.conn.execute("SELECT * FROM transactions WHERE date BETWEEN ? AND ?", (start_date_str, end_date_str)).fetchall()
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date.strftime("%Y-%m-%d")
+            return self.conn.execute("SELECT * FROM transactions WHERE date >= ? AND date <= ?", (start_date_str, end_date_str)).fetchall()
+    
+    def get_categories(self):
+        with self.conn:
+            return [row[0] for row in self.conn.execute("SELECT category FROM budgets").fetchall()]
     
     def visualize_spending_vs_budget(self):
         with self.conn:
@@ -95,7 +97,7 @@ class BudgetTracker:
                 plt.tight_layout
                 plt.show()
             else:
-                print("No data available to visualize")
+                print("No data available to visualize.")
         
     def clear_data(self):
         with self.conn:
@@ -111,60 +113,78 @@ class BudgetTracker:
                 WHERE id > ?
             """, (transaction_id,))
         
-# To initialize the budget tracker:
-# tracker = BudgetTracker()
-
-# To clear transaction table (BE CAREFUL USING THIS FEATURE, IT WILL CLEAR THE DATA IN THE DATABASE)
-# tracker.clear_data()
-
-# To add a transaction:
-# tracker.add_transaction(account: str, amount: float, category: str, date: date)
-# Examples:
-# tracker.add_transaction("Account 1", 50.75, "Groceries", datetime(2024, 8, 10, 0, 0, 0))
-# tracker.add_transaction("Account 2", 1200, "Rent", datetime.now())
-
-# To set a budget for a category:
-# tracker.set_budget(category: str, amount: float)
-# Example:
-# tracker.set_budget("Groceries", 300)
-
-# To retrieve and print all transactions:
-# transactions = tracker.get_transactions()
-# print("Transactions:")
-# for transaction in transactions:
-    # print(transaction)
-
-# print()
-
-# To retrieve and print all transactions in a date range:
-# start_date = datetime(year: int, month: int, day: int)
-# end_date = datetime(year: int, month: int, day: int, 23, 59, 59)
-# print(f"Transactions between {start_date} and {end_date}")
-# transactions_in_range = tracker.get_transactions_by_date_range(start_date, end_date)
-# for transaction in transactions_in_range:
-    # print(transaction)
-
-# Visualize spending and budget by category
-# tracker.visualize_spending_vs_budget()
-
-# TEST
-
 tracker = BudgetTracker()
-
-# Clear existing data
 tracker.clear_data()
 
-# Add a few transactions
-tracker.add_transaction("Account 1", 50.75, "Groceries", datetime(2024, 8, 10))
-tracker.add_transaction("Account 2", 1200, "Rent", datetime.now())
-tracker.add_transaction("Account 1", 200, "Utilities", datetime(2024, 8, 15))
-tracker.add_transaction("Account 2", 100, "Groceries", datetime(2024, 8, 20))
+def main():
+    tracker = BudgetTracker()
+    
+    while True:
+        print("\nOptions:")
+        print("1. Set a budget for a category")
+        print("2. Add a transaction")
+        print("3. Display transactions in a date range")
+        print("4. Visualize spending vs budget")
+        print("5. Exit")
+        choice = input("Enter your choice (1/2/3/4/5): ")
 
-# Set a budget for a category
-tracker.set_budget("Groceries", 300)
-tracker.set_budget("Rent", 1200)
-tracker.set_budget("Utilities", 350)
-tracker.set_budget("Allowance", 100)
+        if choice == "1":
+            try:
+                category = input("Enter the category name: ").upper()
+                budget_limit = input("Enter the budget limit: ")
+                tracker.set_budget(category, budget_limit)
+                print(f"Budget set for category {category}: {budget_limit}")
+            except ValueError:
+                print("Invalid input. Please enter the correct data format.")
 
-# Visualize spending by category
-tracker.visualize_spending_vs_budget()
+        elif choice == "2":    
+            try:
+                categories = tracker.get_categories()
+                if not categories:
+                    print("No categories found. Please set a budget for at least one category first.")
+                    continue
+
+                print(f"Available categories: {', '.join(categories)}")
+                while True:
+                    category = input("Enter the transaction category: ")
+                    if category in categories:
+                        break
+                    print("Category not in tracker. Please enter a valid category.")
+
+                amount = float(input("Enter the transaction amount: "))
+                date_str = input("Enter the transaction date (YYYY-MM-DD): ")
+                date = datetime.strptime(date_str, "%Y-%m-%d")
+                tracker.add_transaction(amount, category, date)
+                print("Transaction added.")
+            except ValueError:
+                print("Invalid input. Please enter the correct data format.")
+        
+        elif choice == "3":
+            try:
+                start_date_str = input("Enter the start date (YYYY-MM-DD): ")
+                end_date_str = input("Enter the end date (YYYY-MM-DD): ")
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+                transactions = tracker.get_transactions_by_date_range(start_date, end_date)
+                if transactions:
+                    print(f"Transactions from {start_date} to {end_date}:")
+                    for txn in transactions:
+                        txn_id, amount, category, date = txn
+                        print(f"ID: {txn_id}, Amount: {amount}, Category: {category}, Date: {date}")
+                else:
+                    print("No transactions found for the specified date range.")
+            except ValueError:
+                print("Invalid date format. Please enter dates in YYYY-MM-DD format.")
+        
+        elif choice == "4":
+            tracker.visualize_spending_vs_budget()
+        
+        elif choice == "5":
+            print("Exiting...")
+            break
+        
+        else:
+            print("Invalid choice. Please enter 1, 2, 3, or 4.")
+
+if __name__ == "__main__":
+    main()
