@@ -128,8 +128,9 @@ def main():
         print("2. Add a transaction")
         print("3. Display transactions in a category and date range")
         print("4. Visualize spending vs budget")
-        print("5. Exit")
-        choice = input("Enter your choice (1/2/3/4/5): ")
+        print("5. Delete a transaction")
+        print("6. Exit")
+        choice = input("Enter your choice (1/2/3/4/5/6): ")
 
         if choice == "1":
             try:
@@ -191,6 +192,14 @@ def main():
             tracker.visualize_spending_vs_budget()
         
         elif choice == "5":
+            try:
+                txn_id = int(input("Enter the transaction ID to delete: "))
+                tracker.remove_transaction(txn_id)
+                print(f"Transaction with ID {txn_id} deleted.")
+            except ValueError:
+                print("Invalid input. Please enter a valid transaction")
+
+        elif choice == "6":
             print("Exiting...")
             break
         
