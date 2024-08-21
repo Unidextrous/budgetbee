@@ -13,7 +13,7 @@ class BudgetTracker:
                 CREATE TABLE IF NOT EXISTS transactions (
                     id INTEGER PRIMARY KEY,
                     amount REAL, 
-                    details TEXT
+                    details TEXT,
                     category TEXT, 
                     date TEXT
                 )
@@ -21,7 +21,8 @@ class BudgetTracker:
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS budgets (
                     category TEXT PRIMARY KEY,
-                    budget_limit REAL
+                    budget_limit REAL,
+                    update_date TEXT
                 )
             """)
     
@@ -30,9 +31,11 @@ class BudgetTracker:
             self.conn.execute("INSERT INTO transactions (amount, category, details, date) VALUES(?, ?, ?, ?)",
                 (amount, category, details, date.isoformat()))
     
-    def set_budget(self, category, budget_limit):
+    def set_budget(self, category, budget_limit, update_date):
         with self.conn:
-            self.conn.execute("REPLACE INTO budgets (category, budget_limit) VALUES (?, ?)", (category, budget_limit))
+            self.conn.execute("REPLACE INTO budgets (category, budget_limit, update_date) VALUES (?, ?, ?)",
+                (category, budget_limit, update_date.isoformat())
+            )
     
     def get_transactions(self, category, start_date, end_date):
         with self.conn:
@@ -44,20 +47,26 @@ class BudgetTracker:
                     "SELECT * FROM transactions WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)", (start_date_str, end_date_str)
                 ).fetchall()
             return self.conn.execute(
-                "SELECT * FROM transactions WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)", (category, start_date_str, end_date_str)
+                "SELECT * FROM transactions WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)",
+                (category, start_date_str, end_date_str)
             ).fetchall()
     
     def get_categories(self):
         with self.conn:
             return [row[0] for row in self.conn.execute("SELECT category FROM budgets").fetchall()[::-1]]
     
-    def visualize_spending_vs_budget(self):
+    def visualize_spending_vs_budget(self, start_date, end_date):
         with self.conn:
-            spending_data = self.conn.execute("""
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date.strftime("%Y-%m-%d")
+
+            spending_query = """
                 SELECT category, SUM(amount) as total
                 FROM transactions
+                WHERE (DATE(date) >= DATE(?) OR ? IS NULL) AND (DATE(date) <= DATE(?) OR ? IS NULL)
                 GROUP BY category
-            """).fetchall()
+            """
+            spending_data = self.conn.execute(spending_query, (start_date_str, start_date_str, end_date_str, end_date_str)).fetchall()            
 
             budget_data = self.conn.execute("""
                 SELECT category, budget_limit
@@ -114,7 +123,7 @@ def main():
     
     while True:
         print("\nOptions:")
-        print("1. Set a budget for a category")
+        print("1. Set a budget")
         print("2. Add a transaction")
         print("3. Display transactions in a category and date range")
         print("4. Visualize spending vs budget")
@@ -126,8 +135,10 @@ def main():
             try:
                 category = input("Enter the category name: ").upper()
                 budget_limit = float(input("Enter the budget limit: "))
-                tracker.set_budget(category, budget_limit)
-                print(f"Budget set for category {category}: {budget_limit}")
+                update_date_str = input("Enter the update date (YYYY-MM-DD): ")
+                update_date = datetime.strptime(update_date_str, "%Y-%m-%d")
+                tracker.set_budget(category, budget_limit, update_date)
+                print(f"Budget set for category {category} with limit {budget_limit} as of {update_date_str}.")
             except ValueError:
                 print("Invalid input. Please enter the correct data format.")
 
@@ -180,7 +191,14 @@ def main():
                 print("Invalid date format. Please enter dates in YYYY-MM-DD format.")
         
         elif choice == "4":
-            tracker.visualize_spending_vs_budget()
+            try:
+                start_date_str = input("Enter the start date for visualization (YYYY-MM-DD): ")
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+                end_date_str = input("Enter the start date for visualization (YYYY-MM-DD): ")
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+                tracker.visualize_spending_vs_budget(start_date, end_date)
+            except ValueError:
+                print("Invalid date format. Please enter dates in YYYY-MM-DD format.")
         
         elif choice == "5":
             try:
