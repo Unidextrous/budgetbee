@@ -2,12 +2,6 @@ import sqlite3
 from datetime import datetime
 from matplotlib import pyplot as plt
 
-class Transaction:
-    def __init__(self, amount, category, date = None):
-        self.amount = amount
-        self.category = category
-        self.date = date or datetime.now()
-
 class BudgetTracker:
     def __init__(self, db_name = "budget.db"):
         self.conn = sqlite3.connect(db_name)
@@ -39,7 +33,7 @@ class BudgetTracker:
         with self.conn:
             self.conn.execute("REPLACE INTO budgets (category, budget_limit) VALUES (?, ?)", (category, budget_limit))
     
-    def get_transactions_conditional(self, category, start_date, end_date):
+    def get_transactions(self, category, start_date, end_date):
         with self.conn:
             start_date_str = start_date.strftime("%Y-%m-%d")
             end_date_str = end_date.strftime("%Y-%m-%d")
@@ -177,7 +171,7 @@ def main():
                 end_date_str = input("Enter the end date (YYYY-MM-DD): ")
                 end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
 
-                transactions = tracker.get_transactions_conditional(category, start_date, end_date)
+                transactions = tracker.get_transactions(category, start_date, end_date)
                 if transactions:
                     print(f"Transactions from {start_date} to {end_date}:")
                     for txn in transactions:
