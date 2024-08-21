@@ -39,19 +39,22 @@ class BudgetTracker:
         with self.conn:
             self.conn.execute("REPLACE INTO budgets (category, budget_limit) VALUES (?, ?)", (category, budget_limit))
     
-    def get_transactions(self):
-        with self.conn:
-            return self.conn.execute("SELECT * FROM transactions").fetchall()
-    
-    def get_transactions_by_date_range(self, start_date, end_date):
+    def get_transactions_conditional(self, category, start_date, end_date):
         with self.conn:
             start_date_str = start_date.strftime("%Y-%m-%d")
             end_date_str = end_date.strftime("%Y-%m-%d")
-            return self.conn.execute("SELECT * FROM transactions WHERE date >= ? AND date <= ?", (start_date_str, end_date_str)).fetchall()
+
+            if category == "*":
+                return self.conn.execute(
+                    "SELECT * FROM transactions WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)", (start_date_str, end_date_str)
+                ).fetchall()
+            return self.conn.execute(
+                "SELECT * FROM transactions WHERE category = ? AND DATE(date) >= ? AND DATE(date) <= DATE(?)", (category, start_date_str, end_date_str)
+            ).fetchall()
     
     def get_categories(self):
         with self.conn:
-            return [row[0] for row in self.conn.execute("SELECT category FROM budgets").fetchall()]
+            return [row[0] for row in self.conn.execute("SELECT category FROM budgets").fetchall()[::-1]]
     
     def visualize_spending_vs_budget(self):
         with self.conn:
@@ -123,7 +126,7 @@ def main():
         print("\nOptions:")
         print("1. Set a budget for a category")
         print("2. Add a transaction")
-        print("3. Display transactions in a date range")
+        print("3. Display transactions in a category and date range")
         print("4. Visualize spending vs budget")
         print("5. Exit")
         choice = input("Enter your choice (1/2/3/4/5): ")
@@ -145,11 +148,10 @@ def main():
                     continue
 
                 print(f"Available categories: {', '.join(categories)}")
-                while True:
-                    category = input("Enter the transaction category: ")
-                    if category in categories:
-                        break
+                category = input("Enter the transaction category: ").upper()
+                if category not in categories:
                     print("Category not in tracker. Please enter a valid category.")
+                    continue
 
                 amount = float(input("Enter the transaction amount: "))
                 date_str = input("Enter the transaction date (YYYY-MM-DD): ")
@@ -161,11 +163,20 @@ def main():
         
         elif choice == "3":
             try:
+                categories = tracker.get_categories()
+                if not categories:
+                    print("No categories found. Please set a budget for at least one category first.")
+                    continue
+
+                print(f"Available categories: {', '.join(categories)} (* for ALL)")
+                category = input("Enter the transaction category: ").upper()
+
                 start_date_str = input("Enter the start date (YYYY-MM-DD): ")
-                end_date_str = input("Enter the end date (YYYY-MM-DD): ")
                 start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+                end_date_str = input("Enter the end date (YYYY-MM-DD): ")
                 end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
-                transactions = tracker.get_transactions_by_date_range(start_date, end_date)
+
+                transactions = tracker.get_transactions_conditional(category, start_date, end_date)
                 if transactions:
                     print(f"Transactions from {start_date} to {end_date}:")
                     for txn in transactions:
