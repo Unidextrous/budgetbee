@@ -20,9 +20,10 @@ class BudgetTracker:
             """)
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS budgets (
-                    category TEXT PRIMARY KEY,
+                    category TEXT,
                     budget_limit REAL,
-                    update_date TEXT
+                    start_date TEXT,
+                    PRIMARY KEY (category, start_date)
                 )
             """)
     
@@ -31,10 +32,10 @@ class BudgetTracker:
             self.conn.execute("INSERT INTO transactions (amount, category, details, date) VALUES(?, ?, ?, ?)",
                 (amount, category, details, date.isoformat()))
     
-    def set_budget(self, category, budget_limit, update_date):
+    def set_budget(self, category, budget_limit, start_date):
         with self.conn:
-            self.conn.execute("REPLACE INTO budgets (category, budget_limit, update_date) VALUES (?, ?, ?)",
-                (category, budget_limit, update_date.isoformat())
+            self.conn.execute("REPLACE INTO budgets (category, start_date, budget_limit) VALUES (?, ?, ?)",
+                (category, start_date.isoformat(), budget_limit)
             )
     
     def get_transactions(self, category, start_date, end_date):
@@ -50,6 +51,18 @@ class BudgetTracker:
                 "SELECT * FROM transactions WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)",
                 (category, start_date_str, end_date_str)
             ).fetchall()
+        
+    def get_budgets(self, start_date, end_date):
+        with self.conn:
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date.strftime("%Y-%m-%d")
+        
+            return self.conn.execute("""
+                SELECT * FROM budgets
+                WHERE DATE(start_date) >= DATE(?)
+                AND DATE(start_date) <= DATE(?)
+                ORDER BY start_date ASC
+            """, (start_date_str, end_date_str)).fetchall()
     
     def get_categories(self):
         with self.conn:
@@ -57,21 +70,19 @@ class BudgetTracker:
     
     def visualize_spending_vs_budget(self, start_date, end_date):
         with self.conn:
-            start_date_str = start_date.strftime("%Y-%m-%d")
-            end_date_str = end_date.strftime("%Y-%m-%d")
-
-            spending_query = """
+            spending_data = self.conn.execute("""
                 SELECT category, SUM(amount) as total
                 FROM transactions
-                WHERE (DATE(date) >= DATE(?) OR ? IS NULL) AND (DATE(date) <= DATE(?) OR ? IS NULL)
+                WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
                 GROUP BY category
-            """
-            spending_data = self.conn.execute(spending_query, (start_date_str, start_date_str, end_date_str, end_date_str)).fetchall()            
+            """, (start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))).fetchall()
 
             budget_data = self.conn.execute("""
-                SELECT category, budget_limit
+                SELECT category, SUM(budget_limit) as total_budget
                 FROM budgets
-            """).fetchall()
+                WHERE DATE(start_date) <= DATE(?) AND DATE(start_date) >= DATE(?)
+                GROUP BY category
+            """, (end_date.strftime("%Y-%m-%d"), start_date.strftime("%Y-%m-%d"))).fetchall()
 
             spending_dict = {row[0]: row[1] for row in spending_data}
             budget_dict = {row[0]: row[1] for row in budget_data}
@@ -135,10 +146,10 @@ def main():
             try:
                 category = input("Enter the category name: ").upper()
                 budget_limit = float(input("Enter the budget limit: "))
-                update_date_str = input("Enter the update date (YYYY-MM-DD): ")
-                update_date = datetime.strptime(update_date_str, "%Y-%m-%d")
-                tracker.set_budget(category, budget_limit, update_date)
-                print(f"Budget set for category {category} with limit {budget_limit} as of {update_date_str}.")
+                start_date_str = input("Enter the start date (YYYY-MM-DD): ")
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+                tracker.set_budget(category, budget_limit, start_date)
+                print(f"Budget set for category {category} with limit {budget_limit} as of {start_date_str}.")
             except ValueError:
                 print("Invalid input. Please enter the correct data format.")
 
@@ -211,7 +222,7 @@ def main():
         elif choice == "6":
             print("Exiting...")
             break
-        
+
         else:
             print("Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.")
 
