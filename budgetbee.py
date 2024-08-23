@@ -57,12 +57,21 @@ class BudgetTracker:
             start_date_str = start_date.strftime("%Y-%m-%d")
             end_date_str = end_date.strftime("%Y-%m-%d")
         
-            return self.conn.execute("""
-                SELECT * FROM budgets
-                WHERE DATE(start_date) >= DATE(?)
-                AND DATE(start_date) <= DATE(?)
-                ORDER BY start_date ASC
+            budgets_in_range = self.conn.execute("""
+                SELECT category, SUM(budget_limit) as total_budget
+                FROM budgets
+                WHERE DATE(start_date) >= DATE(?) AND DATE(start_date) <= DATE(?)
+                GROUP BY category
             """, (start_date_str, end_date_str)).fetchall()
+
+            previous_budgets = self.conn.execute("""
+                SELECT category, budget_limit, start_date
+                FROM budgets
+                WHERE DATE(start_date) < DATE(?)
+                ORDER BY start_date DESC
+            """, (start_date_str,)).fetchall()
+
+            return budgets_in_range, previous_budgets
     
     def get_categories(self):
         with self.conn:
@@ -77,15 +86,24 @@ class BudgetTracker:
                 GROUP BY category
             """, (start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))).fetchall()
 
-            budget_data = self.conn.execute("""
-                SELECT category, SUM(budget_limit) as total_budget
-                FROM budgets
-                WHERE DATE(start_date) <= DATE(?) AND DATE(start_date) >= DATE(?)
-                GROUP BY category
-            """, (end_date.strftime("%Y-%m-%d"), start_date.strftime("%Y-%m-%d"))).fetchall()
+            budgets_in_range, previous_budgets = self.get_budgets(start_date, end_date)
 
             spending_dict = {row[0]: row[1] for row in spending_data}
-            budget_dict = {row[0]: row[1] for row in budget_data}
+            budget_dict = {row[0]: row[1] for row in budgets_in_range}
+
+            for category, budget_limit, budget_start_date in previous_budgets:
+                spent_before_start = self.conn.execute("""
+                    SELECT SUM(amount)
+                    FROM transactions
+                    WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) < DATE(?)
+                """, (category, budget_start_date, start_date)).fetchone()[0] or 0.0
+
+                adjusted_budget = budget_limit - spent_before_start
+
+                if category in budget_dict:
+                    budget_dict[category] += adjusted_budget
+                else:
+                    budget_dict[category] = adjusted_budget
 
             categories = []
             spending = []
@@ -160,7 +178,7 @@ def main():
                     print("No categories found. Please set a budget for at least one category first.")
                     continue
 
-                print(f"Available categories: {', '.join(categories)}")
+                print(f"Available categories: {', '.join(set(categories))}")
                 category = input("Enter the transaction category: ").upper()
                 if category not in categories:
                     print("Category not in tracker. Please enter a valid category.")
@@ -182,8 +200,11 @@ def main():
                     print("No categories found. Please set a budget for at least one category first.")
                     continue
 
-                print(f"Available categories: {', '.join(categories)} (* for ALL)")
+                print(f"Available categories: {', '.join(set(categories))} (* for ALL)")
                 category = input("Enter the transaction category: ").upper()
+                if category not in categories:
+                    print("Category not in tracker. Please enter a valid category.")
+                    continue
 
                 start_date_str = input("Enter the start date (YYYY-MM-DD): ")
                 start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
