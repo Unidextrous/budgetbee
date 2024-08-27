@@ -1,6 +1,7 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from matplotlib import pyplot as plt
+from collections import defaultdict
 
 class BudgetTracker:
     def __init__(self, db_name = "budget.db"):
@@ -44,9 +45,14 @@ class BudgetTracker:
             end_date_str = end_date.strftime("%Y-%m-%d")
 
             if category == "*":
+                category_condition = "1=1"
+            else:
+                category_condition = "category = ?"
                 return self.conn.execute(
-                    "SELECT * FROM transactions WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)", (start_date_str, end_date_str)
-                ).fetchall()
+                    "SELECT SUM(amount), 'TOTAL', NULL, NULL, NULL FROM transactions WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)",
+                    (start_date_str, end_date_str)
+                ).fetchone()
+
             return self.conn.execute(
                 "SELECT * FROM transactions WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)",
                 (category, start_date_str, end_date_str)
@@ -77,7 +83,7 @@ class BudgetTracker:
         with self.conn:
             return [row[0] for row in self.conn.execute("SELECT category FROM budgets").fetchall()[::-1]]
     
-    def visualize_spending_vs_budget(self, start_date, end_date):
+    def visualize_bar(self, start_date, end_date):
         with self.conn:
             spending_data = self.conn.execute("""
                 SELECT category, SUM(amount) as total
@@ -104,6 +110,12 @@ class BudgetTracker:
                     budget_dict[category] += adjusted_budget
                 else:
                     budget_dict[category] = adjusted_budget
+            
+            total_spending = sum(spending_dict.values())
+            total_budget = sum(budget_dict.values())
+
+            spending_dict['TOTAL'] = total_spending
+            budget_dict['TOTAL'] = total_budget
 
             categories = []
             spending = []
@@ -134,7 +146,96 @@ class BudgetTracker:
                 plt.show()
             else:
                 print("No data available to visualize.")
-        
+
+    def visualize_line(self, category, start_date, end_date):
+        with self.conn:
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date.strftime("%Y-%m-%d")
+
+            if category == "*":
+                category_condition = "1 = 1"
+            else:
+                category_condition = "category = ?"
+
+            transactions_query = """
+                SELECT DATE(date), SUM(amount)
+                FROM transactions
+                WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
+                AND ({})
+                GROUP BY DATE(date)
+                ORDER BY DATE(date)
+            """.format(category_condition)
+
+            transactions_params = (start_date_str, end_date_str)
+            if category != "*":
+                transactions_params = (start_date_str, end_date_str, category)
+
+            transactions = self.conn.execute(transactions_query, transactions_params).fetchall()
+    
+            budgets_query = """
+                SELECT DATE(start_date), SUM(budget_limit)
+                FROM budgets
+                WHERE DATE(start_date) >= DATE(?) AND DATE(start_date) <= DATE(?)
+                AND ({})
+                GROUP BY DATE(start_date)
+                ORDER BY DATE(start_date)
+            """.format(category_condition)
+
+            budgets_params = (start_date_str, end_date_str)
+            if category != "*":
+                budgets_params = (start_date_str, end_date_str, category)
+
+            budgets = self.conn.execute(budgets_query, budgets_params).fetchall()
+
+            spending_over_time = defaultdict(float)
+            budget_over_time = defaultdict(float)
+
+            cumulative_spending = 0.0
+            cumulative_budget = 0.0
+
+            previous_spending_date = start_date_str
+            for date, amount in transactions:
+                while previous_spending_date < date:
+                    spending_over_time[previous_spending_date] = cumulative_spending
+                    previous_spending_date = (datetime.strptime(previous_spending_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+                cumulative_spending += amount
+                spending_over_time[date] = cumulative_spending
+                previous_spending_date = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+            
+            while previous_spending_date <= end_date_str:
+                spending_over_time[previous_spending_date] = cumulative_spending
+                previous_spending_date = (datetime.strptime(previous_spending_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+
+            previous_budget_date = start_date_str
+            for date, budget in budgets:
+                while previous_budget_date < date:
+                    budget_over_time[previous_budget_date] = cumulative_budget
+                    previous_budget_date = (datetime.strptime(previous_budget_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+                cumulative_budget += budget
+                budget_over_time[date] = cumulative_budget
+                previous_budget_date = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+
+                while previous_budget_date <= end_date_str:
+                    budget_over_time[previous_budget_date] = cumulative_budget
+                    previous_budget_date = (datetime.strptime(previous_budget_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+
+            dates = sorted(set(spending_over_time.keys()) | set(budget_over_time.keys()))
+            spending_values = [spending_over_time[date] for date in dates]
+            budget_values = [budget_over_time[date] for date in dates]
+
+            plt.figure(figsize = (10, 5))
+            plt.plot(dates, spending_values, label = "Cumulative Spending", color = "blue")
+            plt.plot(dates, budget_values, label = "Cumulative Budget", color = "green")
+            plt.xlabel("Date")
+            plt.ylabel("Amount")
+            plt.title(f"Cumulative Spending vs Budget Over Time ({category})")
+            plt.legend()
+            plt.grid(True)
+            plt.xticks(rotation = 45)
+            plt.tight_layout()
+            plt.show()
+
+
     def clear_data(self):
         with self.conn:
             self.conn.execute("DELETE FROM transactions")
@@ -155,10 +256,11 @@ def main():
         print("1. Set a budget")
         print("2. Add a transaction")
         print("3. Display transactions in a category and date range")
-        print("4. Visualize spending vs budget")
-        print("5. Delete a transaction")
-        print("6. Exit")
-        choice = input("Enter your choice (1/2/3/4/5/6): ")
+        print("4. Visualize by Category")
+        print("5. Visualize Over Time")
+        print("6. Delete a transaction")
+        print("7. Exit")
+        choice = input("Enter your choice (1/2/3/4/5/6/7): ")
 
         if choice == "1":
             try:
@@ -228,11 +330,28 @@ def main():
                 start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
                 end_date_str = input("Enter the start date for visualization (YYYY-MM-DD): ")
                 end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
-                tracker.visualize_spending_vs_budget(start_date, end_date)
+                tracker.visualize_bar(start_date, end_date)
             except ValueError:
                 print("Invalid date format. Please enter dates in YYYY-MM-DD format.")
         
         elif choice == "5":
+            try:
+                categories = tracker.get_categories()
+                if not categories:
+                    print("No categories found. Please set a budget for at least one category first.")
+                
+                print(f"Available categories: {', '.join(set(categories))} (* for TOTAL)")
+                category = input("Enter the category for visualization: ").upper()
+
+                start_date_str = input("Enter the start date for visualization (YYYY-MM-DD): ")
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+                end_date_str = input("Enter the end date for visualization (YYYY-MM-DD): ")
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+                tracker.visualize_line(category, start_date, end_date)
+            except ValueError:
+                print("Invalid date format. Please enter dates in YYYY-MM-DD format.")
+        
+        elif choice == "6":
             try:
                 txn_id = int(input("Enter the transaction ID to delete: "))
                 tracker.remove_transaction(txn_id)
@@ -240,7 +359,7 @@ def main():
             except ValueError:
                 print("Invalid input. Please enter a valid transaction ID.")
 
-        elif choice == "6":
+        elif choice == "7":
             print("Exiting...")
             break
 
