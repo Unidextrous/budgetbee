@@ -5,9 +5,9 @@ class BudgetManager:
         self.db = db
 
     def set_budget(self, category, budget_limit, start_date):
-            self.db.execute("INSERT INTO budgets (category, start_date, budget_limit) VALUES (?, ?, ?)",
-                (category, start_date.isoformat(), budget_limit)
-            )
+        self.db.execute("INSERT INTO budgets (category, start_date, budget_limit) VALUES (?, ?, ?)",
+           (category, start_date.isoformat(), budget_limit)
+        )
 
     def get_budgets_by_date(self, category, start_date, end_date):
         start_date_str = start_date.strftime("%Y-%m-%d")

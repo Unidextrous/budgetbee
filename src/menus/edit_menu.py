@@ -188,7 +188,7 @@ def menu(income_manager, category_manager, budget_manager, transaction_manager):
                 print("Category does not exist. Please enter a valid category.")
         
         elif choice_sub == "3":
-            new_details = input("Enter the new transaction details: ")
+            new_details = input("Enter the new transaction details: ").upper()
             transaction_manager.update_transaction_details(transaction_id, new_details)
             print(f"Transaction details updated to {new_details}.")
 

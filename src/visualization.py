@@ -155,3 +155,23 @@ class Visualizer:
         plt.xticks(rotation = 45)
         plt.tight_layout()
         plt.show()
+
+    def visualize_pie(self, start_date, end_date):
+        spending_data = self.db.fetchall("""
+            SELECT category, SUM(amount) as total
+            FROM transactions
+            WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
+            GROUP BY category
+        """, (start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))
+
+        if not spending_data:
+            print("No spending data available for the given date range.")
+            return
+
+        categories = [row[0] for row in spending_data]
+        amounts = [row[1] for row in spending_data]
+
+        plt.figure(figsize=(8, 8))
+        plt.pie(amounts, labels=categories, autopct='%1.1f%%', startangle=140)
+        plt.title(f"Spending Distribution by Category ({start_date.date()} - {end_date.date()})")
+        plt.show()
