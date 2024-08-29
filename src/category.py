@@ -4,7 +4,7 @@ class CategoryManager:
 
     def get_categories(self):
         with self.db.conn:
-            return [row[0] for row in self.db.fetchall("SELECT category FROM budgets")[::-1]]
+            return [row[0] for row in self.db.fetchall("SELECT category FROM categories")[::-1]]
 
     def add_category(self, category):
         with self.db.conn:
@@ -14,7 +14,17 @@ class CategoryManager:
                 return
             
             self.db.execute("""
-                INSERT INTO budgets (category, budget_limit, start_date)
-                VALUES (?, 0, DATE('now'))
+                INSERT INTO categories (category)
+                VALUES (?)
             """, (category,))
             print(f"Category '{category}' added.")
+
+    def rename_category(self, old_name, new_name):
+        self.db.execute("UPDATE categories SET category = ? WHERE category = ?", (new_name, old_name))
+        self.db.execute("UPDATE budgets SET category = ? WHERE category = ?", (new_name, old_name))
+        self.db.execute("UPDATE transactions SET category = ? WHERE category = ?", (new_name, old_name))
+
+    def delete_category(self, name):
+        self.db.execute("DELETE FROM categories WHERE category = ?", (name,))
+        self.db.execute("DELETE FROM budgets WHERE category = ?", (name,))
+        self.db.execute("DELETE FROM transactions WHERE category = ?", (name,))

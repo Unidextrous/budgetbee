@@ -25,16 +25,29 @@ class Database:
                 CREATE TABLE IF NOT EXISTS transactions (
                     id INTEGER PRIMARY KEY,
                     amount REAL, 
-                    details TEXT,
-                    category TEXT, 
+                    category TEXT,
+                    details TEXT, 
                     date TEXT
                 )
             """)
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS budgets (
+                    id INTEGER PRIMARY KEY,
                     category TEXT,
                     budget_limit REAL,
-                    start_date TEXT,
-                    PRIMARY KEY (category, start_date)
+                    start_date TEXT
+                )
+            """)
+            self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS categories (
+                    category TEXT PRIMARY KEY
+                )
+            """)
+            self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS income (
+                    id INTEGER PRIMARY KEY,
+                    amount REAL, 
+                    source TEXT,
+                    date TEXT
                 )
             """)
