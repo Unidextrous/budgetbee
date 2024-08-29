@@ -6,7 +6,7 @@ class Visualizer:
     def __init__(self, db):
         self.db = db
 
-    def visualize_bar(self, budget_tracker, start_date, end_date):
+    def visualize_bar(self, budget_manager, start_date, end_date):
         spending_data = self.db.fetchall("""
             SELECT category, SUM(amount) as total
             FROM transactions
@@ -14,10 +14,10 @@ class Visualizer:
             GROUP BY category
         """, (start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))
 
-        budgets_in_range, previous_budgets = budget_tracker.get_budgets_by_date(start_date, end_date)
+        budgets_in_range, previous_budgets = budget_manager.get_budgets_by_date("*", start_date, end_date)
 
         spending_dict = {row[0]: row[1] for row in spending_data}
-        budget_dict = {row[0]: row[1] for row in budgets_in_range}
+        budget_dict = {row[1]: row[2] for row in budgets_in_range}
 
         for category, budget_limit, budget_start_date in previous_budgets:
             spent_before_start = self.db.conn.fetchone("""
@@ -32,7 +32,7 @@ class Visualizer:
                 budget_dict[category] += adjusted_budget
             else:
                 budget_dict[category] = adjusted_budget
-            
+        
         total_spending = sum(spending_dict.values())
         total_budget = sum(budget_dict.values())
 

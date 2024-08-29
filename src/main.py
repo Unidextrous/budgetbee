@@ -48,7 +48,7 @@ def main():
             menus.edit_menu.menu(income_manager, category_manager, budget_manager, transaction_manager)
 
         elif choice == "4":
-            menus.visualization_menu.menu(income_manager, category_manager, budget_manager, transaction_manager)
+            menus.visualization_menu.menu(income_manager, category_manager, budget_manager, transaction_manager, visualizer)
 
         elif choice == "5":
             print("Exiting...")
