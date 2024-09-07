@@ -22,8 +22,21 @@ class Database:
     def create_tables(self):
         with self.conn:
             self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS balances (
+                    account TEXT PRIMARY KEY, 
+                    balance REAL,
+                    date_set TEXT
+                )
+            """)
+            self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS categories (
+                    category TEXT PRIMARY KEY
+                )
+            """)
+            self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS transactions (
                     id INTEGER PRIMARY KEY,
+                    account TEXT,
                     amount REAL, 
                     category TEXT,
                     details TEXT, 
@@ -36,18 +49,5 @@ class Database:
                     category TEXT,
                     budget_limit REAL,
                     start_date TEXT
-                )
-            """)
-            self.conn.execute("""
-                CREATE TABLE IF NOT EXISTS categories (
-                    category TEXT PRIMARY KEY
-                )
-            """)
-            self.conn.execute("""
-                CREATE TABLE IF NOT EXISTS income (
-                    id INTEGER PRIMARY KEY,
-                    amount REAL, 
-                    source TEXT,
-                    date TEXT
                 )
             """)

@@ -2,10 +2,6 @@ class CategoryManager:
     def __init__(self, db):
         self.db = db
 
-    def get_categories(self):
-        with self.db.conn:
-            return [row[0] for row in self.db.fetchall("SELECT category FROM categories")[::-1]]
-
     def add_category(self, category):
         with self.db.conn:
             existing_categories = self.get_categories()
@@ -14,11 +10,14 @@ class CategoryManager:
                 return
             
             self.db.execute("""
-                INSERT INTO categories (category)
-                VALUES (?)
+                INSERT INTO categories (category) VALUES (?)
             """, (category,))
             print(f"Category '{category}' added.")
-
+    
+    def get_categories(self):
+        with self.db.conn:
+            return [row[0] for row in self.db.fetchall("SELECT category FROM categories")[::-1]]
+        
     def rename_category(self, old_name, new_name):
         self.db.execute("UPDATE categories SET category = ? WHERE category = ?", (new_name, old_name))
         self.db.execute("UPDATE budgets SET category = ? WHERE category = ?", (new_name, old_name))

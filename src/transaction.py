@@ -8,7 +8,7 @@ class TransactionManager:
         self.db.execute("INSERT INTO transactions (amount, category, details, date) VALUES(?, ?, ?, ?)",
             (amount, category, details, date.isoformat()))
     
-    def get_transactions_by_date(self, category, start_date, end_date):
+    def get_transactions_by_category(self, category, start_date, end_date):
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
 
@@ -21,6 +21,21 @@ class TransactionManager:
         return self.db.fetchall(
             "SELECT * FROM transactions WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)",
             (category, start_date_str, end_date_str)
+        )
+    
+    def get_transactions_by_account(self, account, start_date, end_date):
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+
+        if account == "*":
+            return self.db.fetchall(
+                "SELECT * FROM transactions WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)",
+                (start_date_str, end_date_str)
+            )
+            
+        return self.db.fetchall(
+            "SELECT * FROM transactions WHERE account = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)",
+            (account, start_date_str, end_date_str)
         )
 
     def get_transaction_by_id(self, transaction_id):

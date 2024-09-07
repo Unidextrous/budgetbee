@@ -3,10 +3,13 @@ from matplotlib import pyplot as plt
 from collections import defaultdict
 
 class Visualizer:
-    def __init__(self, db):
+    def __init__(self, db, budget_manager, transaction_manager):
         self.db = db
+        self.budget_manager = budget_manager
+        self.transaction_manager = transaction_manager
 
-    def visualize_bar(self, budget_manager, start_date, end_date):
+    def visualize_bar(self, start_date, end_date):
+            
         spending_data = self.db.fetchall("""
             SELECT category, SUM(amount) as total
             FROM transactions
@@ -14,25 +17,28 @@ class Visualizer:
             GROUP BY category
         """, (start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))
 
-        budgets_in_range, previous_budgets = budget_manager.get_budgets_by_date("*", start_date, end_date)
+        budgets_in_range, previous_budgets = self.budget_manager.get_budgets_by_date("*", start_date, end_date)
 
         spending_dict = {row[0]: row[1] for row in spending_data}
-        budget_dict = {row[1]: row[2] for row in budgets_in_range}
+        budget_dict = {row[0]: row[1] for row in budgets_in_range}
 
-        for category, budget_limit, budget_start_date in previous_budgets:
-            spent_before_start = self.db.conn.fetchone("""
-                SELECT SUM(amount)
-                FROM transactions
-                WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) < DATE(?)
-            """, (category, budget_start_date, start_date))[0] or 0.0
+        try:
+            for category, budget_limit, budget_start_date in previous_budgets:
+                spent_before_start = self.db.conn.fetchone("""
+                    SELECT SUM(amount)
+                    FROM transactions
+                    WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) < DATE(?)
+                """, (category, budget_start_date, start_date))[0] or 0.0
+                
+                adjusted_budget = budget_limit - spent_before_start
 
-            adjusted_budget = budget_limit - spent_before_start
+                if category in budget_dict:
+                    budget_dict[category] += adjusted_budget
+                else:
+                    budget_dict[category] = adjusted_budget
+        except ValueError:
+            print("Missing data for this time range.")
 
-            if category in budget_dict:
-                budget_dict[category] += adjusted_budget
-            else:
-                budget_dict[category] = adjusted_budget
-        
         total_spending = sum(spending_dict.values())
         total_budget = sum(budget_dict.values())
 

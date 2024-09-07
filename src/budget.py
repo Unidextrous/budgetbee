@@ -4,7 +4,7 @@ class BudgetManager:
     def __init__(self, db):
         self.db = db
 
-    def set_budget(self, category, budget_limit, start_date):
+    def add_budget(self, category, budget_limit, start_date):
         self.db.execute("INSERT INTO budgets (category, start_date, budget_limit) VALUES (?, ?, ?)",
            (category, start_date.isoformat(), budget_limit)
         )
@@ -24,8 +24,7 @@ class BudgetManager:
             budgets_in_range = self.db.fetchall(
                 """SELECT id, category, budget_limit, start_date
                 FROM budgets
-                WHERE category = ? AND DATE(start_date) >= DATE(?) AND DATE(start_date) <= DATE(?)
-                GROUP BY category""",
+                WHERE category = ? AND DATE(start_date) >= DATE(?) AND DATE(start_date) <= DATE(?)""",
                 (category, start_date_str, end_date_str)
             )
 

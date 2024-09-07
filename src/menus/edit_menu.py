@@ -1,63 +1,15 @@
 from datetime import datetime
 
-def menu(income_manager, category_manager, budget_manager, transaction_manager):
+def menu(balance_manager, category_manager, transaction_manager, budget_manager):
     print("Edit:")
-    print("1. Income")
-    print("2. Category")
-    print("3. Budget")
-    print("4. Transaction")
+    print("1. Edit Balance")
+    print("2. Edit Category")
+    print("3. Edit Transaction")
+    print("4. Edit Budget")
     choice = input("Enter your choice (1/2/3/4): ")
 
     if choice == "1":
-        try:
-            income_id = int(input("Enter the ID of the income source to edit: "))
-        except ValueError:
-            print("Invalid ID. Please enter a number.")
-
-        income = income_manager.get_income_by_id(income_id)
-
-        if income == None:
-            print(f"No income with ID {income_id}. Please enter a valid ID.")
-            return
-        
-        id, amount, source, date = income
-        print(f"ID: {id}, Amount: {amount}, Source: {source}, Date: {date}")
-        print("1. Update amount")
-        print("2. Update source")
-        print("3. Update date")
-        print("4. Delete income source")
-        choice_sub = input("Enter your choice (1/2/3/4): ")
-
-        if choice_sub == "1":
-            try:
-                new_amount = float(input("Enter the new income amount: "))
-                income_manager.update_income_amount(income_id, new_amount)
-                print(f"Income amount updated to {new_amount}.")
-            except ValueError:
-                print("Invalid amount. Please enter a valid number.")
-        
-        elif choice_sub == "2":
-            new_source = input("Enter the new income source: ").upper()
-            income_manager.update_income_source(income_id, new_source)
-            print(f"Income source updated to {new_source}.")
-        
-        elif choice_sub == "3":
-            try:
-                new_date_str = input("Enter the new date (YYYY-MM-DD): ")
-                new_date = datetime.strptime(new_date_str, "%Y-%m-%d")
-                income_manager.update_income_date(income_id, new_date)
-                print(f"Income date updated to {new_date}.")
-            except ValueError:
-                print("Invalid date format. Please enter the date in YYYY-MM-DD format.")
-
-        elif choice_sub == "4":
-            delete = input("Are you sure you wish to delete this income source? Y/N: ").upper()
-            if delete == "Y":
-                income_manager.remove_income_source(income_id)
-                print(f"Income source with ID {income_id} deleted.")
-        
-        else:
-            print("Invalid choice. Please enter 1, 2, 3, or 4.")
+        pass
     
     elif choice == "2":
         categories = category_manager.get_categories()
@@ -94,6 +46,67 @@ def menu(income_manager, category_manager, budget_manager, transaction_manager):
             print("Invalid choice. Please enter 1 or 2.")
 
     elif choice == "3":
+        try:
+            transaction_id = int(input("Enter the ID of the transaction to edit: "))
+        except ValueError:
+            print("Invalid ID. Please enter a number.")
+
+        transaction = transaction_manager.get_transaction_by_id(transaction_id)
+
+        if transaction == None:
+            print(f"No transaction with ID {transaction_id}. Please enter a valid ID.")
+            return
+        
+        txn_id, amount, category, details, date = transaction
+        print(f"ID: {txn_id}, Amount: {amount}, Category: {category}, Details: {details}, Date: {date}")
+        print("1. Update transaction amount")
+        print("2. Update transaction category")
+        print("3. Update transaction details")
+        print("4. Update transaction date")
+        print("5. Delete transaction")
+        choice_sub = input("Enter your choice (1/2/3/4/5): ")
+
+        if choice_sub == "1":
+            try:
+                new_amount = float(input("Enter the new transaction amount: "))
+                transaction_manager.update_transaction_amount(transaction_id, new_amount)
+                print(f"Transaction amount updated to {new_amount}.")
+            except ValueError:
+                print("Invalid amount. Please enter a valid number.")
+
+        elif choice_sub == "2":
+            new_category = input("Enter new category: ").upper()
+            categories = category_manager.get_categories()
+            if new_category in categories:
+                transaction_manager.update_category(transaction_id, new_category)
+                print(f"Category updated to {new_category}.")
+            else:
+                print("Category does not exist. Please enter a valid category.")
+        
+        elif choice_sub == "3":
+            new_details = input("Enter the new transaction details: ").upper()
+            transaction_manager.update_transaction_details(transaction_id, new_details)
+            print(f"Transaction details updated to {new_details}.")
+
+        elif choice_sub == "4":
+            try:
+                new_date_str = input("Enter the new date (YYYY-MM-DD): ")
+                new_date = datetime.strptime(new_date_str, "%Y-%m-%d")
+                transaction_manager.update_transaction_date(transaction_id, new_date)
+                print(f"Transaction date updated to {new_date}.")
+            except ValueError:
+                print("Invalid date format. Please enter the date in YYYY-MM-DD format.")
+
+        elif choice_sub == "5":
+            delete = input("Are you sure you wish to delete this transaction? Y/N: ").upper()
+            if delete == "Y":
+                transaction_manager.remove_transaction(transaction_id)
+                print(f"Transaction with ID {transaction_id} deleted.")
+
+        else:
+            print("Invalid choice. Please enter 1, 2, 3, 4, or 5.")
+    
+    elif choice == "4":
         try:
             budget_id = int(input("Enter the ID of the budget to edit: "))
         except ValueError:
@@ -148,64 +161,3 @@ def menu(income_manager, category_manager, budget_manager, transaction_manager):
 
         else:
             print("Invalid choice. Please enter 1, 2, or 3.")
-
-    elif choice == "4":
-        try:
-            transaction_id = int(input("Enter the ID of the transaction to edit: "))
-        except ValueError:
-            print("Invalid ID. Please enter a number.")
-
-        transaction = transaction_manager.get_transaction_by_id(transaction_id)
-
-        if transaction == None:
-            print(f"No transaction with ID {transaction_id}. Please enter a valid ID.")
-            return
-        
-        txn_id, amount, category, details, date = transaction
-        print(f"ID: {txn_id}, Amount: {amount}, Category: {category}, Details: {details}, Date: {date}")
-        print("1. Update transaction amount")
-        print("2. Update transaction category")
-        print("3. Update transaction details")
-        print("4. Update transaction date")
-        print("5. Delete transaction")
-        choice_sub = input("Enter your choice (1/2/3): ")
-
-        if choice_sub == "1":
-            try:
-                new_amount = float(input("Enter the new transaction amount: "))
-                transaction_manager.update_transaction_amount(transaction_id, new_amount)
-                print(f"Transaction amount updated to {new_amount}.")
-            except ValueError:
-                print("Invalid amount. Please enter a valid number.")
-
-        elif choice_sub == "2":
-            new_category = input("Enter new category: ").upper()
-            categories = category_manager.get_categories()
-            if new_category in categories:
-                transaction_manager.update_category(transaction_id, new_category)
-                print(f"Category updated to {new_category}.")
-            else:
-                print("Category does not exist. Please enter a valid category.")
-        
-        elif choice_sub == "3":
-            new_details = input("Enter the new transaction details: ").upper()
-            transaction_manager.update_transaction_details(transaction_id, new_details)
-            print(f"Transaction details updated to {new_details}.")
-
-        elif choice_sub == "4":
-            try:
-                new_date_str = input("Enter the new date (YYYY-MM-DD): ")
-                new_date = datetime.strptime(new_date_str, "%Y-%m-%d")
-                transaction_manager.update_transaction_date(transaction_id, new_date)
-                print(f"Transaction date updated to {new_date}.")
-            except ValueError:
-                print("Invalid date format. Please enter the date in YYYY-MM-DD format.")
-
-        elif choice_sub == "5":
-            delete = input("Are you sure you wish to delete this transaction? Y/N: ").upper()
-            if delete == "Y":
-                transaction_manager.remove_transaction(transaction_id)
-                print(f"Transaction with ID {transaction_id} deleted.")
-
-        else:
-            print("Invalid choice. Please enter 1, 2, 3, 4, or 5.")
