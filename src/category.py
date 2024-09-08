@@ -23,7 +23,7 @@ class CategoryManager:
         self.db.execute("UPDATE budgets SET category = ? WHERE category = ?", (new_name, old_name))
         self.db.execute("UPDATE transactions SET category = ? WHERE category = ?", (new_name, old_name))
 
-    def delete_category(self, name):
-        self.db.execute("DELETE FROM categories WHERE category = ?", (name,))
-        self.db.execute("DELETE FROM budgets WHERE category = ?", (name,))
-        self.db.execute("DELETE FROM transactions WHERE category = ?", (name,))
+    def delete_category(self, category):
+        self.db.execute("DELETE FROM categories WHERE category = ?", (category,))
+        self.db.execute("DELETE FROM budgets WHERE category = ?", (category,))
+        self.db.execute("DELETE FROM transactions WHERE category = ?", (category,))

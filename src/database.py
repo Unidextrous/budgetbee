@@ -38,6 +38,7 @@ class Database:
                     id INTEGER PRIMARY KEY,
                     account TEXT,
                     amount REAL, 
+                    remaining_balance REAL,
                     category TEXT,
                     details TEXT, 
                     date TEXT

@@ -4,7 +4,7 @@ class BudgetManager:
     def __init__(self, db):
         self.db = db
 
-    def add_budget(self, category, budget_limit, start_date):
+    def set_budget(self, category, budget_limit, start_date):
         self.db.execute("INSERT INTO budgets (category, start_date, budget_limit) VALUES (?, ?, ?)",
            (category, start_date.isoformat(), budget_limit)
         )

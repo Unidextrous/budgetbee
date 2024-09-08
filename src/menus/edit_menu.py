@@ -160,4 +160,4 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print(f"Budget with ID {budget_id} deleted.")
 
         else:
-            print("Invalid choice. Please enter 1, 2, or 3.")
+            print("Invalid choice. Please enter 1, 2, 3, or 4.")

@@ -9,10 +9,11 @@ from visualization import Visualizer
 
 def clear_data(db):
     with db.conn:
+        db.conn.execute("DELETE FROM balances")
         db.conn.execute("DELETE FROM categories")
-        db.conn.execute("DELETE FROM budgets")
         db.conn.execute("DELETE FROM transactions")
-
+        db.conn.execute("DELETE FROM budgets")
+        
 def main():
     db = Database()
     db.create_tables()
@@ -38,16 +39,16 @@ def main():
         choice = input("Enter your choice (1/2/3/4/5): ").upper()
 
         if choice == "1":
-            menus.add_menu.menu(balance_manager, category_manager, budget_manager, transaction_manager)
+            menus.add_menu.menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
         elif choice == "2":
-            menus.view_menu.menu(balance_manager, category_manager, budget_manager, transaction_manager)
+            menus.view_menu.menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
         elif choice == "3":
-            menus.edit_menu.menu(balance_manager, category_manager, budget_manager, transaction_manager)
+            menus.edit_menu.menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
         elif choice == "4":
-            menus.visualization_menu.menu(category_manager, budget_manager, transaction_manager, visualizer)
+            menus.visualization_menu.menu(category_manager, transaction_manager, budget_manager, visualizer)
 
         elif choice == "5":
             print("Exiting...")

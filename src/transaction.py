@@ -4,9 +4,11 @@ class TransactionManager:
     def __init__(self, db):
         self.db = db
 
-    def add_transaction(self, amount, category, details, date):
-        self.db.execute("INSERT INTO transactions (amount, category, details, date) VALUES(?, ?, ?, ?)",
-            (amount, category, details, date.isoformat()))
+    def add_transaction(self, account, amount, remaining_balance, category, details, date):
+        self.db.execute("""INSERT INTO transactions
+            (account, amount, remaining_balance, category, details, date) VALUES(?, ?, ?, ?, ?, ?)""",
+            (account, amount, remaining_balance, category, details, date.isoformat())
+        )
     
     def get_transactions_by_category(self, category, start_date, end_date):
         start_date_str = start_date.strftime("%Y-%m-%d")
@@ -41,8 +43,19 @@ class TransactionManager:
     def get_transaction_by_id(self, transaction_id):
          return self.db.fetchone("SELECT * FROM transactions WHERE id = ?", (transaction_id,))
     
+    def get_transactions_after(self, account, date, transaction_id):
+        return self.db.fetchall("""
+            SELECT * FROM transactions
+            WHERE account = ?
+            AND (date > ? OR (date = ? AND id > ?))
+            ORDER BY date, id
+        """, (account, date, date, transaction_id))
+    
     def update_transaction_amount(self, transaction_id, new_amount):
         self.db.execute("UPDATE transactions SET amount = ? WHERE id = ?", (new_amount, transaction_id))
+
+    def update_remaining_balance(self, transaction_id, new_remaining_balance):
+        self.db.execute("UPDATE transactions SET remaining_balance = ? WHERE id = ?", (new_remaining_balance, transaction_id))
 
     def update_category(self, transaction_id, new_category):
         self.db.execute("UPDATE transactions SET category = ? WHERE id = ?", (new_category, transaction_id))

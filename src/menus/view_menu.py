@@ -1,7 +1,7 @@
 from datetime import datetime
 
 def menu(balance_manager, category_manager, transaction_manager, budget_manager):
-    print("View:")
+    print("View Menu:")
     print("1. View balances")
     print("2. View categories")
     print("3. View transactions")
@@ -9,8 +9,18 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
     choice = input("Enter your choice (1/2/3/4): ")
 
     if choice == "1":
-        pass
-
+        accounts = balance_manager.get_accounts()
+        if not accounts:
+            print("No accounts found. Please set the balance of at least one account first.")
+            return
+        total_balance = 0.0
+        for account in accounts:
+            balance = balance_manager.get_balance(account)
+            total_balance += balance
+            print(f"- {account}: ${balance}")
+        print(f"- TOTAL BALANCE: ${total_balance}")
+        
+            
     elif choice == "2":
         categories = category_manager.get_categories()
         if categories:
@@ -21,34 +31,58 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             print("No categories found.")
 
     elif choice == "3":
-        try:
-            categories = category_manager.get_categories()
-            if not categories:
-                print("No categories found. Please add at least one category first.")
-                return
+        categories = category_manager.get_categories()
+        if not categories:
+            print("No categories found. Please add at least one category first.")
+            return
             
+        accounts = balance_manager.get_accounts()
+        if not accounts:
+            print("No accounts found. Please set a balance fot at least one account.")
+            
+        print("1. Search by category")
+        print("2. Search by account")
+        choice_sub = input("Enter your choice (1/2): ")
+
+        if choice_sub not in ["1", "2"]:
+            print("Invalid choice. Please enter 1 or 2.")
+
+        try:
             start_date_str = input("Enter the start date (YYYY-MM-DD): ")
             start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
             end_date_str = input("Enter the end date (YYYY-MM-DD): ")
             end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
-
-            print(f"Available categories: {', '.join(set(categories))}")
-            category = input("Enter the transaction category (* for ALL): ").upper()
-            if category not in categories and category != "*":
-                print("Category not in tracker. Please enter a valid category.")
-                return
+                
+            if choice_sub == "1":
+                print(f"Available categories: {', '.join(set(categories))}")
+                category = input("Enter the transaction category (* for ALL): ").upper()
+                if category not in categories and category != "*":
+                    print("Category not in tracker. Please enter a valid category.")
+                    return
             
-            transactions = transaction_manager.get_transactions_by_category(category, start_date, end_date)
-            total_spending = 0.0
+                transactions = transaction_manager.get_transactions_by_category(category, start_date, end_date)
+            
+            elif choice_sub == "2":
+                accounts = balance_manager.get_accounts()
+                if not accounts:
+                    print("No accounts found. Please set the balance of at least one account first.")
+                    return
+
+                print(f"Available accounts: {', '.join(set(accounts))}")
+                account = input("Enter the transaction account (* for ALL): ").upper()
+                if account not in accounts and account != "*":
+                    print("Account not in tracker. Please enter a valid account.")
+                    return
+                
+                transactions = transaction_manager.get_transactions_by_account(account, start_date, end_date)
+            
             if transactions:
                 print(f"Transactions from {start_date} to {end_date}:")
                 for txn in transactions:
-                    txn_id, amount, category, details, date = txn
-                    print(f"ID: {txn_id}, Amount: {amount}, Category: {category} Details: {details}, Date: {date}")
-                    total_spending += amount
+                    txn_id, account, amount, remaining_balance, category, details, date = txn
+                    print(f"ID: {txn_id}, Account: {account} Amount: {amount}, Remaining Balance: {remaining_balance} Category: {category}, Details: {details}, Date: {date}")
             else:
                 print("No transactions found for the specified date range.")
-            print(f"Total spent over date range: {round(total_spending, 2)}")
         except ValueError:
             print("Invalid date format. Please enter dates in YYYY-MM-DD format.")
 
@@ -73,20 +107,16 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             budgets_in_range, previous_budgets = budget_manager.get_budgets_by_date(category, start_date, end_date)
             if budgets_in_range or previous_budgets:
                 print("Budgets:")
-            total_budget_limit = 0.0
             if budgets_in_range:
                 for budget in budgets_in_range:
                     id, category, limit, date = budget
                     print(f"ID: {id}, Category: {category}, Budget Limit: {limit}, Date: {date}")
-                    total_budget_limit += limit
             if previous_budgets:
                 most_recent_budget = previous_budgets[0]
                 id, category, limit, date = most_recent_budget
                 print(f"ID: {id}, Category: {category}, Budget Limit: {limit}, Start Date: {date}")
-                total_budget_limit += limit
-            else:
+            if not budgets_in_range and not previous_budgets:
                 print("No budgets found for the specified range.")
-            print(f"Total budget limit for date range: {round(total_budget_limit, 2)}")
         except ValueError:
             print("Invalid date format. Please enter the date in YYYY-MM-DD format.")
 
