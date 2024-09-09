@@ -81,7 +81,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print("Category not in tracker. Please enter a valid category.")
                 return
 
-            budget_limit = float(input("Enter the budget limit: "))
+            budget_limit = float(input("Enter the budget limit: $"))
             start_date_str = input("Enter the start date (YYYY-MM-DD): ")
             start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
             budget_manager.set_budget(category, budget_limit, start_date)

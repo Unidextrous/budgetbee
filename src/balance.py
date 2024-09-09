@@ -22,3 +22,22 @@ class BalanceManager:
 
     def update_balance(self, account, new_balance):
         self.db.execute("UPDATE balances SET balance = ? WHERE account = ?", (new_balance, account))
+
+    def rename_account(self, old_name, new_name):
+        self.db.execute("UPDATE balances SET account = ? WHERE account = ?", (new_name, old_name))
+        self.db.execute("UPDATE transactions SET account = ? WHERE account = ?", (new_name, old_name))
+
+    def reset_balance(self, account, new_balance):
+        self.db.execute("UPDATE balances SET balance = ? WHERE account = ?", (new_balance, account))
+
+    def delete_account(self, account):
+        self.db.execute("DELETE FROM balances WHERE account = ?", (account,))
+        self.db.execute("DELETE FROM transactions WHERE account = ?", (account,))
+
+    def adjust_balance(self, account, amount):
+        # Get the current balance
+        current_balance = self.get_balance(account)
+        # Adjust the balance
+        new_balance = current_balance + amount
+        # Update the balance in the database
+        self.db.execute("UPDATE balances SET balance = ? WHERE account = ?", (new_balance, account))

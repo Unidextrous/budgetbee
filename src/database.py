@@ -1,7 +1,7 @@
 import sqlite3
 
 class Database:
-    def __init__(self, db_name="budget.db"):
+    def __init__(self, db_name="budgetbee/budget.db"):
         self.db_name = db_name
         self.conn = sqlite3.connect(db_name)
         self.create_tables()

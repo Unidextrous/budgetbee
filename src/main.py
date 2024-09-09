@@ -21,7 +21,7 @@ def main():
     balance_manager = BalanceManager(db)
     category_manager = CategoryManager(db)
     budget_manager = BudgetManager(db)
-    transaction_manager = TransactionManager(db)
+    transaction_manager = TransactionManager(db, balance_manager)
     visualizer = Visualizer(db, budget_manager, transaction_manager)
 
     import menus.add_menu

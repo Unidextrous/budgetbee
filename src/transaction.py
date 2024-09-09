@@ -1,8 +1,9 @@
 from datetime import datetime
 
 class TransactionManager:
-    def __init__(self, db):
+    def __init__(self, db, balance_manager):
         self.db = db
+        self.balance_manager = balance_manager
 
     def add_transaction(self, account, amount, remaining_balance, category, details, date):
         self.db.execute("""INSERT INTO transactions
@@ -52,7 +53,25 @@ class TransactionManager:
         """, (account, date, date, transaction_id))
     
     def update_transaction_amount(self, transaction_id, new_amount):
+        old_transaction = self.get_transaction_by_id(transaction_id)
+        if old_transaction:
+            account, old_amount = old_transaction[1], old_transaction[2]
+            self.balance_manager.adjust_balance(account, old_amount)
+            self.balance_manager.adjust_balance(account, -new_amount)
         self.db.execute("UPDATE transactions SET amount = ? WHERE id = ?", (new_amount, transaction_id))
+
+    def update_transaction_account(self, transaction_id, new_account_name):
+        # Get the old transaction details
+        old_transaction = self.get_transaction_by_id(transaction_id)
+        if old_transaction:
+            old_account_name, amount = old_transaction[1], old_transaction[2]
+            
+            # Adjust balances between the two accounts
+            self.balance_manager.adjust_balance(old_account_name, amount)
+            self.balance_manager.adjust_balance(new_account_name, -amount)
+            
+            # Update the transaction account in the database
+            self.db.execute("UPDATE transactions SET account = ? WHERE id = ?", (new_account_name, transaction_id))
 
     def update_remaining_balance(self, transaction_id, new_remaining_balance):
         self.db.execute("UPDATE transactions SET remaining_balance = ? WHERE id = ?", (new_remaining_balance, transaction_id))
@@ -66,5 +85,11 @@ class TransactionManager:
     def update_transaction_date(self, budget_id, new_date):
         self.db.execute("UPDATE transactions SET date = ? WHERE id = ?", (new_date.isoformat(), budget_id))
 
-    def remove_transaction(self, transaction_id):
+    def delete_transaction(self, transaction_id):
+        transaction = self.get_transaction_by_id(transaction_id)
+        if transaction:
+            account_name, amount = transaction[1], transaction[2]
+            
+            # Subtract the amount from the account balance
+            self.balance_manager.adjust_balance(account_name, amount)
         self.db.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))

@@ -46,6 +46,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
         if choice_sub not in ["1", "2"]:
             print("Invalid choice. Please enter 1 or 2.")
+            return
 
         try:
             start_date_str = input("Enter the start date (YYYY-MM-DD): ")
