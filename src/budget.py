@@ -49,5 +49,5 @@ class BudgetManager:
     def update_budget_date(self, budget_id, new_date):
         self.db.execute("UPDATE budgets SET start_date = ? WHERE id = ?", (new_date.isoformat(), budget_id))
 
-    def remove_budget(self, budget_id):
+    def delete_budget(self, budget_id):
         self.db.execute("DELETE FROM budgets WHERE id = ?", (budget_id,))
