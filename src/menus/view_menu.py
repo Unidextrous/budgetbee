@@ -59,7 +59,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print(f"Available categories: {', '.join(set(categories))}")
                 category = input("Enter the transaction category (* for ALL): ").upper()
                 if category not in categories and category != "*":
-                    print("Category not in tracker. Please enter a valid category.")
+                    print("Category not found. Please enter a valid category.")
                     return
             
                 transactions = transaction_manager.get_transactions_by_category(category, start_date, end_date)
@@ -73,7 +73,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print(f"Available accounts: {', '.join(set(accounts))}")
                 account = input("Enter the transaction account (* for ALL): ").upper()
                 if account not in accounts and account != "*":
-                    print("Account not in tracker. Please enter a valid account.")
+                    print("Account not found. Please enter a valid account.")
                     return
                 
                 transactions = transaction_manager.get_transactions_by_account(account, start_date, end_date)

@@ -42,7 +42,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             print(f"Available accounts: {', '.join(set(accounts))}")
             account = input("Enter the account of the transaction: ").upper()
             if account not in accounts:
-                print("Account not in tracker. Please enter a valid account.")
+                print("Account not found. Please enter a valid account.")
                 return
 
             amount = float(input("Enter the transaction amount ('-' for credit): $"))
@@ -52,7 +52,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             print(f"Available categories: {', '.join(set(categories))}")
             category = input("Enter the transaction category: ").upper()
             if category not in categories:
-                print("Category not in tracker. Please enter a valid category.")
+                print("Category not found. Please enter a valid category.")
                 return
             
             details = input("Enter transaction details: ").upper()
@@ -78,7 +78,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             print(f"Available categories: {', '.join(set(categories))}")
             category = input("Enter the category name: ").upper()
             if category not in categories:
-                print("Category not in tracker. Please enter a valid category.")
+                print("Category not found. Please enter a valid category.")
                 return
 
             budget_limit = float(input("Enter the budget limit: $"))

@@ -27,7 +27,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
         print(f"Available accounts: {', '.join(accounts)}")
         account_name = input("Enter the account name to edit: ").upper()
         if account_name not in accounts:
-            print("Account not found.")
+            print("Account not found. Please enter a valid account.")
             return
         
         if choice_sub == "1":
@@ -60,7 +60,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
         print(f"Available categories: {', '.join(categories)}")
         category = input("Enter the category to edit: ").upper()
         if category not in categories:
-            print("Category not found.")
+            print("Category not found. Please enter a valid category.")
             return
 
         print("1. Rename category")
@@ -120,7 +120,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             print(f"Available accounts: {', '.join(accounts)}")
             new_account = input("Enter the new account name: ").upper()
             if account not in accounts:
-                print("Account not found.")
+                print("Account not found. Please enter a valid account.")
                 return
             transaction_manager.update_transaction_account(transaction_id, new_account)
             print(f"{account} balance updated to ${balance_manager.get_balance(account)}")
@@ -197,9 +197,14 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print("Invalid amount. Please enter a valid number.")
 
         elif choice_sub == "2":
+            categories = category_manager.get_categories()
+            if not categories:
+                print("No categories available to rename.")
+                return
+
+            print(f"Available categories: {', '.join(categories)}")
             new_category = input("Enter new category: ").upper()
             categories = category_manager.get_categories()
-            print(categories)
             if new_category in categories:
                 budget_manager.update_category(budget_id, new_category)
                 print(f"Category updated to {new_category}.")
