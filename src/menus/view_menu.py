@@ -39,6 +39,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
         accounts = balance_manager.get_accounts()
         if not accounts:
             print("No accounts found. Please set a balance fot at least one account.")
+            return
             
         print("1. Search by category")
         print("2. Search by account")
