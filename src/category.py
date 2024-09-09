@@ -16,7 +16,7 @@ class CategoryManager:
     
     def get_categories(self):
         with self.db.conn:
-            return [row[0] for row in self.db.fetchall("SELECT category FROM categories")[::-1]]
+            return [row[0] for row in self.db.fetchall("SELECT category FROM categories")]
         
     def rename_category(self, old_name, new_name):
         self.db.execute("UPDATE categories SET category = ? WHERE category = ?", (new_name, old_name))

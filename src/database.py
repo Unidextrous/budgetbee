@@ -24,8 +24,7 @@ class Database:
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS balances (
                     account TEXT PRIMARY KEY, 
-                    balance REAL,
-                    date_set TEXT
+                    balance REAL
                 )
             """)
             self.conn.execute("""

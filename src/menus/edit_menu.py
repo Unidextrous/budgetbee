@@ -192,7 +192,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             try:
                 new_limit = float(input("Enter the new budget limit: "))
                 budget_manager.update_budget_limit(budget_id, new_limit)
-                print(f"Budget limit updated to {new_limit}.")
+                print(f"Budget limit updated to ${new_limit}.")
             except ValueError:
                 print("Invalid amount. Please enter a valid number.")
 

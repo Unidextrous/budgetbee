@@ -17,10 +17,8 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 return
             
             balance = float(input("Enter the starting balance: $"))
-            date_set_str = input("Enter the start date (YYYY-MM-DD): ")
-            date_set = datetime.strptime(date_set_str, "%Y-%m-%d")
-            balance_manager.set_balance(account, balance, date_set)
-            print(f"Balance of ${balance} set for {account} account on {date_set_str}.")
+            balance_manager.set_balance(account, balance)
+            print(f"Balance of ${balance} set for {account} account.")
         except ValueError:
             print("Invalid input. Please enter the correct data format.")
     
