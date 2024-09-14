@@ -17,7 +17,7 @@ class Visualizer:
             GROUP BY category
         """, (start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))
 
-        budgets_in_range, previous_budgets = self.budget_manager.get_budgets_by_date("*", start_date, end_date)
+        budgets_in_range, previous_budgets = self.budget_manager.get_budgets_by_category("*", start_date, end_date)
 
         spending_dict = {row[0]: row[1] for row in spending_data}
         budget_dict = {row[0]: row[1] for row in budgets_in_range}

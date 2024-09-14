@@ -15,16 +15,20 @@ class TransactionManager:
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
 
-        if category == "*":
-            return self.db.fetchall(
-                "SELECT * FROM transactions WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)",
-                (start_date_str, end_date_str)
-            )
-            
         return self.db.fetchall(
             "SELECT * FROM transactions WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)",
-            (category, start_date_str, end_date_str)
-        )
+            (category, start_date_str, end_date_str))
+
+    def get_transactions_by_category_type(self, category_type, start_date, end_date):
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+
+        return self.db.fetchall("""
+            SELECT t.*
+            FROM transactions t
+            JOIN categories c on t.category = c.category
+            WHERE c.type = ? AND DATE (date) >= DATE(?) AND DATE(date) <= DATE(?)
+        """, (category_type, start_date_str, end_date_str))
     
     def get_transactions_by_account(self, account, start_date, end_date):
         start_date_str = start_date.strftime("%Y-%m-%d")

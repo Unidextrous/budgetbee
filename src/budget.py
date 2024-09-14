@@ -9,7 +9,7 @@ class BudgetManager:
            (category, start_date.isoformat(), budget_limit)
         )
 
-    def get_budgets_by_date(self, category, start_date, end_date):
+    def get_budgets_by_category(self, category, start_date, end_date):
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
 

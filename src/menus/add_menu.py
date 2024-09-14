@@ -23,11 +23,26 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             print("Invalid input. Please enter the correct data format.")
     
     elif choice == "2":
-        category_manager.add_category(input("Enter the category name: ").upper())
+        print("1. Add INCOME category")
+        print("2. Add EXPENSE category")
+        choice_sub = input("Enter your choice (1/2): ")
+        if choice_sub not in ["1", "2"]:
+            print("Invalid choice. Please enter 1 or 2.")
+            return
+        
+        category = input("Enter the category name: ").upper()
+        if choice_sub == "1":
+            category_type = "INCOME"
+        elif choice_sub == "2":
+            category_type = "EXPENSE"
+
+        category_manager.add_category(category, category_type)
 
     elif choice == "3":
         try:
-            categories = category_manager.get_categories()
+            income_categories = category_manager.get_categories("INCOME")
+            expense_categories = category_manager.get_categories("EXPENSE")
+            categories = income_categories + expense_categories
             if not categories:
                 print("No categories found. Please set a budget for at least one category first.")
                 return
@@ -47,7 +62,10 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
             balance = balance_manager.get_balance(account)
 
-            print(f"Available categories: {', '.join(set(categories))}")
+            if income_categories:
+                print(f"Available INCOME categories: {', '.join(set(income_categories))}")
+            if expense_categories:
+                print(f"Available EXPENSE categories: {', '.join(set(expense_categories))}")
             category = input("Enter the transaction category: ").upper()
             if category not in categories:
                 print("Category not found. Please enter a valid category.")
@@ -58,7 +76,10 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             date = datetime.strptime(date_str, "%Y-%m-%d")
 
             balance = balance_manager.get_balance(account)
-            new_balance = balance - amount
+            if category in income_categories:
+                new_balance = balance + amount
+            elif category in expense_categories:
+                new_balance = balance - amount
 
             balance_manager.update_balance(account, new_balance)
             transaction_manager.add_transaction(account, amount, new_balance, category, details, date)
@@ -68,14 +89,17 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
     elif choice == "4":
         try:
-            categories = category_manager.get_categories()
-            if not categories:
-                print("No categories found. Please set a budget for at least one category first.")
-                return
-
-            print(f"Available categories: {', '.join(set(categories))}")
-            category = input("Enter the category name: ").upper()
+            income_categories = category_manager.get_categories("INCOME")
+            expense_categories = category_manager.get_categories("EXPENSE")
+            if not income_categories:
+                print("No EXPENSE categories found. Please set a budget for at least one category first.")
+                return            
+            print(f"Available categories: {', '.join(set(expense_categories))}")
+            category = input("Enter the budget category name: ").upper()
             if category not in categories:
+                if category in income_categories:
+                    print(f"{category} is an INCOME category. Please set the budget for an EXPENSE category.")
+                    return
                 print("Category not found. Please enter a valid category.")
                 return
 

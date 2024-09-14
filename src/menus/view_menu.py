@@ -56,13 +56,32 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
                 
             if choice_sub == "1":
-                print(f"Available categories: {', '.join(set(categories))}")
+                print("1. View INCOME categories")
+                print("2. View EXPENSE categories")
+                choice_sub_sub = input("Enter your choice (1/2): ")
+                
+                if choice_sub_sub not in ["1", "2"]:
+                    print("Invalid choice. Please enter 1 or 2.")
+                    return
+                if choice_sub_sub == "1":
+                    category_type = "INCOME"
+                elif choice_sub_sub == "2":
+                    category_type = "EXPENSE"
+                categories = category_manager.get_categories(category_type)
+                if not categories:
+                    print(f"No available {category_type} categories.")
+                    return
+
+                print(f"Available {category_type} categories: {', '.join(set(categories))}")
                 category = input("Enter the transaction category (* for ALL): ").upper()
-                if category not in categories and category != "*":
+                if category == "*":
+                    transactions = transaction_manager.get_transactions_by_category_type(category_type, start_date, end_date)
+                elif category in categories:
+                    # Get transactions of the specific category
+                    transactions = transaction_manager.get_transactions_by_category(category, start_date, end_date)
+                else:
                     print("Category not found. Please enter a valid category.")
                     return
-            
-                transactions = transaction_manager.get_transactions_by_category(category, start_date, end_date)
             
             elif choice_sub == "2":
                 accounts = balance_manager.get_accounts()
@@ -106,7 +125,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print("Category not in tracker. Please enter a valid category.")
                 return
 
-            budgets_in_range, previous_budgets = budget_manager.get_budgets_by_date(category, start_date, end_date)
+            budgets_in_range, previous_budgets = budget_manager.get_budgets_by_category(category, start_date, end_date)
             if budgets_in_range or previous_budgets:
                 print("Budgets:")
             if budgets_in_range:

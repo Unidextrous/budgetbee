@@ -29,7 +29,8 @@ class Database:
             """)
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS categories (
-                    category TEXT PRIMARY KEY
+                    category TEXT PRIMARY KEY,
+                    type TEXT
                 )
             """)
             self.conn.execute("""

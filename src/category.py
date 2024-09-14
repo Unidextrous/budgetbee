@@ -2,7 +2,7 @@ class CategoryManager:
     def __init__(self, db):
         self.db = db
 
-    def add_category(self, category):
+    def add_category(self, category, category_type):
         with self.db.conn:
             existing_categories = self.get_categories()
             if category in existing_categories:
@@ -10,13 +10,19 @@ class CategoryManager:
                 return
             
             self.db.execute("""
-                INSERT INTO categories (category) VALUES (?)
-            """, (category,))
-            print(f"Category '{category}' added.")
+                INSERT INTO categories (category, type) VALUES (?, ?)
+            """, (category, category_type))
+            print(f"Category '{category}' added as {category_type}.")
     
-    def get_categories(self):
+    def get_categories(self, category_type=None):
+        query = "SELECT category FROM categories"
+        params = ()
+        if category_type:
+            query += " WHERE type = ?"
+            params = (category_type,)
+        
         with self.db.conn:
-            return [row[0] for row in self.db.fetchall("SELECT category FROM categories")]
+            return [row[0] for row in self.db.fetchall(query, params)]
         
     def rename_category(self, old_name, new_name):
         self.db.execute("UPDATE categories SET category = ? WHERE category = ?", (new_name, old_name))
