@@ -17,15 +17,24 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
         for account in accounts:
             balance = balance_manager.get_balance(account)
             total_balance += balance
-            print(f"- {account}: ${balance}")
+            if balance >= 0:
+                print(f"- {account}: ${balance}")
+            else:
+                print(f"- {account}: -${balance * -1}")
         print(f"- TOTAL BALANCE: ${total_balance}")
         
             
     elif choice == "2":
-        categories = category_manager.get_categories()
-        if categories:
-            print("Categories:")
-            for category in categories:
+        income_categories = category_manager.get_categories("INCOME")
+        expense_categories = category_manager.get_categories("EXPENSE")
+        if income_categories or expense_categories:
+            if income_categories:
+                print("INCOME categories:")
+            for category in income_categories:
+                print(f"- {category}")
+            if expense_categories:
+                print("EXPENSE categories")
+            for category in expense_categories:
                 print(f"- {category}")
         else:
             print("No categories found.")
@@ -101,6 +110,17 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print(f"Transactions from {start_date} to {end_date}:")
                 for txn in transactions:
                     txn_id, account, amount, remaining_balance, category, details, date = txn
+
+                    amount = f"${amount}"
+                    expense_categories = category_manager.get_categories("EXPENSE")
+                    if category in expense_categories:
+                        amount = f"-{amount}"
+
+                    if remaining_balance >= 0:
+                        remaining_balance = f"${remaining_balance}"
+                    else:
+                        remaining_balance = f"-${remaining_balance * -1}"
+                    
                     print(f"ID: {txn_id}, Account: {account} Amount: {amount}, Remaining Balance: {remaining_balance} Category: {category}, Details: {details}, Date: {date}")
             else:
                 print("No transactions found for the specified date range.")

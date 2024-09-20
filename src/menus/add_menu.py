@@ -18,7 +18,10 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             
             balance = float(input("Enter the starting balance: $"))
             balance_manager.set_balance(account, balance)
-            print(f"Balance of ${balance} set for {account} account.")
+            if balance >= 0:
+                print(f"Balance of ${balance} set for {account} account.")
+            else:
+                print(f"Balance of -${balance * -1} set for {account} account.")
         except ValueError:
             print("Invalid input. Please enter the correct data format.")
     
@@ -58,10 +61,6 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print("Account not found. Please enter a valid account.")
                 return
 
-            amount = float(input("Enter the transaction amount ('-' for credit): $"))
-
-            balance = balance_manager.get_balance(account)
-
             if income_categories:
                 print(f"Available INCOME categories: {', '.join(set(income_categories))}")
             if expense_categories:
@@ -70,6 +69,17 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             if category not in categories:
                 print("Category not found. Please enter a valid category.")
                 return
+
+            if category in income_categories:
+                amount = float(input("Enter the transaction amount: $"))
+            elif category in expense_categories:
+                amount = float(input("Enter the transaction amount: -$"))
+            
+            if amount < 0:
+                print("Invalid input. Please enter a positive number.")
+                return
+
+            balance = balance_manager.get_balance(account)
             
             details = input("Enter transaction details: ").upper()
             date_str = input("Enter the transaction date (YYYY-MM-DD): ")
@@ -83,7 +93,10 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
             balance_manager.update_balance(account, new_balance)
             transaction_manager.add_transaction(account, amount, new_balance, category, details, date)
-            print(f"Transaction of ${amount} added. New {account} balance: ${new_balance}")
+            if category in income_categories:
+                print(f"Transaction of ${amount} added. New {account} balance: ${new_balance}")
+            elif category in expense_categories:
+                print(f"Transaction of -${amount} added. New {account} balance: ${new_balance}")
         except ValueError:
             print("Invalid input. Please enter the correct data format.")
 
