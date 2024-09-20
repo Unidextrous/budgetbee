@@ -124,14 +124,15 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                     print(f"ID: {txn_id}, Account: {account} Amount: {amount}, Remaining Balance: {remaining_balance} Category: {category}, Details: {details}, Date: {date}")
             else:
                 print("No transactions found for the specified date range.")
-        except ValueError:
-            print("Invalid date format. Please enter dates in YYYY-MM-DD format.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     elif choice == "4":
         try:
-            categories = category_manager.get_categories()
-            if not categories:
-                print("No categories found. Please add at least one category first.")
+            income_categories = category_manager.get_categories("INCOME")
+            expense_categories = category_manager.get_categories("EXPENSE")
+            if not expense_categories:
+                print("No EXPENSE categories found. Please add at least one EXPENSE category first.")
                 return
             
             start_date_str = input("Enter the start date for budgets (YYYY-MM-DD): ")
@@ -139,10 +140,13 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             end_date_str = input("Enter the end date for budgets (YYYY-MM-DD): ")
             end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
 
-            print(f"Available categories: {', '.join(set(categories))}")
+            print(f"Available categories: {', '.join(set(expense_categories))}")
             category = input("Enter the transaction category (* for ALL): ").upper()
-            if category not in categories and category != "*":
-                print("Category not in tracker. Please enter a valid category.")
+            if category not in expense_categories and category != "*":
+                if category in income_categories:
+                    print(f"{category} is an INCOME category. Please set the budget for an EXPENSE category.")
+                    return
+                print("Category not found. Please enter a valid category.")
                 return
 
             budgets_in_range, previous_budgets = budget_manager.get_budgets_by_category(category, start_date, end_date)
@@ -158,8 +162,8 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print(f"ID: {id}, Category: {category}, Budget Limit: {limit}, Start Date: {date}")
             if not budgets_in_range and not previous_budgets:
                 print("No budgets found for the specified range.")
-        except ValueError:
-            print("Invalid date format. Please enter the date in YYYY-MM-DD format.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     else:
         print("Invalid choice. Please enter 1, 2, 3, or 4.")
