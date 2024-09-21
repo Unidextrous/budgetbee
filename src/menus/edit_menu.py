@@ -40,9 +40,16 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
         elif choice_sub == "2":
             # Display current balance
             current_balance = balance_manager.get_balance(account_name)
-            print(f"Current balance for {account_name}: ${current_balance}")
-            new_balance = input("New balance: $")
+            if current_balance >= 0:
+                print(f"Current balance for {account_name}: ${current_balance}")
+            else:
+                print(f"Current balance for {account_name}: -${current_balance * -1}")
+            new_balance = float(input("New balance: $"))
             balance_manager.reset_balance(account_name, new_balance)
+            if new_balance >= 0:
+                print(f"{account_name} balance set to ${new_balance}")
+            else:
+                print(f"{account_name} balance set to -${new_balance * -1}")
 
         elif choice_sub == "3":
             delete = input("Are you sure you wish to delete this account? Y/N: ").upper()
@@ -128,7 +135,6 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
         elif choice_sub == "2":
             try:
-                categories = category_manager.get_categories()
                 new_amount = float(input("Enter the new transaction amount: $"))
                 transaction_manager.update_transaction_amount(transaction_id, new_amount)
                 print(f"Transaction amount updated to ${new_amount}.")

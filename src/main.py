@@ -15,8 +15,12 @@ def clear_data(db):
         db.conn.execute("DELETE FROM budgets")
         
 def main():
-    db = Database()
-    db.create_tables()
+    try:
+        db = Database()
+        db.create_tables()
+    except Exception as e:
+        print(f"Error connecting to the database: {e}")
+        return
     
     balance_manager = BalanceManager(db)
     category_manager = CategoryManager(db)
@@ -55,9 +59,8 @@ def main():
             break
 
         elif choice == "CLEAR":
-            print("WARNING: THIS WILL DELETE ALL DATA FROM BUDGET.")
-            choice = input("Continue? ").upper()
-            if choice == "CONTINUE":
+            choice = input("WARNING: THIS WILL DELETE ALL DATA. Type 'CONFIRM' to proceed: ").upper()
+            if choice == "CONFIRM":
                 clear_data(db)
 
         else:

@@ -7,14 +7,23 @@ class Database:
         self.create_tables()
 
     def execute(self, query, params=()):
-        with self.conn:
-            return self.conn.execute(query, params)
+        try:
+            with self.conn:
+                return self.conn.execute(query, params)
+        except sqlite3.DatabaseError as e:
+            print(f"Database error: {e}")
     
     def fetchall(self, query, params=()):
-        return self.execute(query, params).fetchall()
+        try:
+            return self.execute(query, params).fetchall()
+        except sqlite3.DatabaseError as e:
+            print(f"Database error: {e}")
     
     def fetchone(self, query, params=()):
-        return self.execute(query, params).fetchone()
+        try:
+            return self.execute(query, params).fetchone()
+        except sqlite3.DatabaseError as e:
+            print(f"Database error: {e}")
     
     def close(self):
         self.conn.close()
@@ -30,7 +39,7 @@ class Database:
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS categories (
                     category TEXT PRIMARY KEY,
-                    type TEXT
+                    type TEXT CHECK (type IN ("INCOME", "EXPENSE"))
                 )
             """)
             self.conn.execute("""
@@ -41,7 +50,8 @@ class Database:
                     remaining_balance REAL,
                     category TEXT,
                     details TEXT, 
-                    date TEXT
+                    date TEXT,
+                    FOREIGN KEY (category) REFERENCES categories (category)
                 )
             """)
             self.conn.execute("""
@@ -49,6 +59,7 @@ class Database:
                     id INTEGER PRIMARY KEY,
                     category TEXT,
                     budget_limit REAL,
-                    start_date TEXT
+                    start_date TEXT,
+                    FOREIGN KEY (category) REFERENCES categories (category)
                 )
             """)

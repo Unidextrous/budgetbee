@@ -30,7 +30,7 @@ def menu(category_manager, budget_manager, transaction_manager, visualizer):
                 print("Invalid date format. Please enter the date in YYYY-MM-DD format.")
                 return
 
-            categories = category_manager.get_categories()
+            categories = category_manager.get_categories_by_type()
             if not categories:
                 print("No categories found. Please add at least one category first.")
                 return
