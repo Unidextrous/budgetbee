@@ -1,10 +1,14 @@
 import sqlite3
 
 class Database:
-    def __init__(self, db_name="budgetbee/budget.db"):
-        self.db_name = db_name
-        self.conn = sqlite3.connect(db_name)
-        self.create_tables()
+    _instance = None  
+    
+    def __new__(cls):  
+        if cls._instance is None:  
+            cls._instance = super(Database, cls).__new__(cls)  
+            cls._instance.conn = sqlite3.connect("budgetbee/budget.db")  
+        return cls._instance  
+
 
     def execute(self, query, params=()):
         try:
