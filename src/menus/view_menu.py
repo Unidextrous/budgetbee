@@ -1,21 +1,21 @@
 from datetime import datetime
 
-def menu(balance_manager, category_manager, transaction_manager, budget_manager):
+def menu(account_manager, category_manager, transaction_manager, budget_manager):
     print("View Menu:")
-    print("1. View balances")
+    print("1. View account balances")
     print("2. View categories")
     print("3. View transactions")
     print("4. View budgets")
     choice = input("Enter your choice (1/2/3/4): ")
 
     if choice == "1":
-        accounts = balance_manager.get_accounts()
+        accounts = account_manager.get_accounts()
         if not accounts:
             print("No accounts found. Please set the balance of at least one account first.")
             return
         total_balance = 0.0
         for account in accounts:
-            balance = balance_manager.get_balance(account)
+            balance = account_manager.get_balance(account)
             total_balance += balance
             if balance >= 0:
                 print(f"- {account}: ${balance}")
@@ -45,7 +45,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             print("No categories found. Please add at least one category first.")
             return
             
-        accounts = balance_manager.get_accounts()
+        accounts = account_manager.get_accounts()
         if not accounts:
             print("No accounts found. Please set a balance fot at least one account.")
             return
@@ -93,7 +93,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                     return
             
             elif choice_sub == "2":
-                accounts = balance_manager.get_accounts()
+                accounts = account_manager.get_accounts()
                 if not accounts:
                     print("No accounts found. Please set the balance of at least one account first.")
                     return
