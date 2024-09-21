@@ -25,8 +25,8 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
         
             
     elif choice == "2":
-        income_categories = category_manager.get_categories("INCOME")
-        expense_categories = category_manager.get_categories("EXPENSE")
+        income_categories = category_manager.get_categories_by_type("INCOME")
+        expense_categories = category_manager.get_categories_by_type("EXPENSE")
         if income_categories or expense_categories:
             if income_categories:
                 print("INCOME categories:")
@@ -40,7 +40,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             print("No categories found.")
 
     elif choice == "3":
-        categories = category_manager.get_categories()
+        categories = category_manager.get_categories_by_type()
         if not categories:
             print("No categories found. Please add at least one category first.")
             return
@@ -76,7 +76,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                     category_type = "INCOME"
                 elif choice_sub_sub == "2":
                     category_type = "EXPENSE"
-                categories = category_manager.get_categories(category_type)
+                categories = category_manager.get_categories_by_type(category_type)
                 if not categories:
                     print(f"No available {category_type} categories.")
                     return
@@ -112,7 +112,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                     txn_id, account, amount, remaining_balance, category, details, date = txn
 
                     amount = f"${amount}"
-                    expense_categories = category_manager.get_categories("EXPENSE")
+                    expense_categories = category_manager.get_categories_by_type("EXPENSE")
                     if category in expense_categories:
                         amount = f"-{amount}"
 
@@ -129,8 +129,8 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
     elif choice == "4":
         try:
-            income_categories = category_manager.get_categories("INCOME")
-            expense_categories = category_manager.get_categories("EXPENSE")
+            income_categories = category_manager.get_categories_by_type("INCOME")
+            expense_categories = category_manager.get_categories_by_type("EXPENSE")
             if not expense_categories:
                 print("No EXPENSE categories found. Please add at least one EXPENSE category first.")
                 return

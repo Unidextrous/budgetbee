@@ -61,7 +61,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
     
     elif choice == "2":
-        categories = category_manager.get_categories()
+        categories = category_manager.get_categories_by_type()
         if not categories:
             print("No categories available to rename.")
             return
@@ -146,7 +146,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
         elif choice_sub == "3":
             new_category = input("Enter new category: ").upper()
-            categories = category_manager.get_categories()
+            categories = category_manager.get_categories_by_type()
             if new_category in categories:
                 transaction_manager.update_category(transaction_id, new_category)
                 print(f"Category updated to {new_category}.")
@@ -206,14 +206,14 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print(f"An error occurred: {e}")
 
         elif choice_sub == "2":
-            categories = category_manager.get_categories()
+            categories = category_manager.get_categories_by_type()
             if not categories:
                 print("No categories available to rename.")
                 return
 
             print(f"Available categories: {', '.join(categories)}")
             new_category = input("Enter new category: ").upper()
-            categories = category_manager.get_categories()
+            categories = category_manager.get_categories_by_type()
             if new_category in categories:
                 budget_manager.update_category(budget_id, new_category)
                 print(f"Category updated to {new_category}.")
