@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from database import Database
-from balance import BalanceManager
+from account import AccountManager
 from category import CategoryManager
 from transaction import TransactionManager
 from budget import BudgetManager
@@ -9,7 +9,7 @@ from visualization import Visualizer
 
 def clear_data(db):
     with db.conn:
-        db.conn.execute("DELETE FROM balances")
+        db.conn.execute("DELETE FROM accounts")
         db.conn.execute("DELETE FROM categories")
         db.conn.execute("DELETE FROM transactions")
         db.conn.execute("DELETE FROM budgets")
@@ -22,10 +22,10 @@ def main():
         print(f"Error connecting to the database: {e}")
         return
     
-    balance_manager = BalanceManager(db)
+    account_manager = AccountManager(db)
     category_manager = CategoryManager(db)
     budget_manager = BudgetManager(db)
-    transaction_manager = TransactionManager(db, balance_manager)
+    transaction_manager = TransactionManager(db, account_manager)
     visualizer = Visualizer(db, budget_manager, transaction_manager)
 
     import menus.add_menu
@@ -43,13 +43,13 @@ def main():
         choice = input("Enter your choice (1/2/3/4/5): ").upper()
 
         if choice == "1":
-            menus.add_menu.menu(balance_manager, category_manager, transaction_manager, budget_manager)
+            menus.add_menu.menu(account_manager, category_manager, transaction_manager, budget_manager)
 
         elif choice == "2":
-            menus.view_menu.menu(balance_manager, category_manager, transaction_manager, budget_manager)
+            menus.view_menu.menu(account_manager, category_manager, transaction_manager, budget_manager)
 
         elif choice == "3":
-            menus.edit_menu.menu(balance_manager, category_manager, transaction_manager, budget_manager)
+            menus.edit_menu.menu(account_manager, category_manager, transaction_manager, budget_manager)
 
         elif choice == "4":
             menus.visualization_menu.menu(category_manager, transaction_manager, budget_manager, visualizer)

@@ -35,7 +35,7 @@ class Database:
     def create_tables(self):
         with self.conn:
             self.conn.execute("""
-                CREATE TABLE IF NOT EXISTS balances (
+                CREATE TABLE IF NOT EXISTS accounts (
                     account TEXT PRIMARY KEY, 
                     balance REAL
                 )
@@ -55,6 +55,7 @@ class Database:
                     category TEXT,
                     details TEXT, 
                     date TEXT,
+                    FOREIGN KEY (account) REFERENCES accounts (account)
                     FOREIGN KEY (category) REFERENCES categories (category)
                 )
             """)

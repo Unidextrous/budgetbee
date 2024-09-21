@@ -1,6 +1,6 @@
 from datetime import datetime
 
-def menu(balance_manager, category_manager, transaction_manager, budget_manager):
+def menu(account_manager, category_manager, transaction_manager, budget_manager):
     print("Edit:")
     print("1. Edit balance")
     print("2. Edit category")
@@ -19,7 +19,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             return
 
         # Get available accounts
-        accounts = balance_manager.get_accounts()
+        accounts = account_manager.get_accounts()
         if not accounts:
             print("No accounts available to edit.")
             return
@@ -35,18 +35,18 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             if new_name in accounts:
                 print("New account name already exists.")
                 return
-            balance_manager.rename_account(account_name, new_name)
+            account_manager.rename_account(account_name, new_name)
         
         elif choice_sub == "2":
             try:
                 # Display current balance
-                current_balance = balance_manager.get_balance(account_name)
+                current_balance = account_manager.get_balance(account_name)
                 if current_balance >= 0:
                     print(f"Current balance for {account_name}: ${current_balance}")
                 else:
                     print(f"Current balance for {account_name}: -${current_balance * -1}")
                 new_balance = float(input("New balance: $"))
-                balance_manager.reset_balance(account_name, new_balance)
+                account_manager.reset_balance(account_name, new_balance)
                 if new_balance >= 0:
                     print(f"{account_name} balance set to ${new_balance}")
                 else:
@@ -56,7 +56,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
         elif choice_sub == "3":
             delete = input("Are you sure you wish to delete this account? Y/N: ").upper()
             if delete == "Y":
-                balance_manager.delete_account(account_name)
+                account_manager.delete_account(account_name)
                 print(f"{account_name} account deleted.")
 
     
@@ -125,22 +125,22 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             return
 
         if choice_sub == "1":
-            accounts = balance_manager.get_accounts()
+            accounts = account_manager.get_accounts()
             print(f"Available accounts: {', '.join(accounts)}")
             new_account = input("Enter the new account name: ").upper()
             if account not in accounts:
                 print("Account not found. Please enter a valid account.")
                 return
             transaction_manager.update_transaction_account(transaction_id, new_account)
-            print(f"{account} balance updated to ${balance_manager.get_balance(account)}")
-            print(f"{new_account} balance updated to ${balance_manager.get_balance(new_account)}")
+            print(f"{account} balance updated to ${account_manager.get_balance(account)}")
+            print(f"{new_account} balance updated to ${account_manager.get_balance(new_account)}")
 
         elif choice_sub == "2":
             try:
                 new_amount = float(input("Enter the new transaction amount: $"))
                 transaction_manager.update_transaction_amount(transaction_id, new_amount)
                 print(f"Transaction amount updated to ${new_amount}.")
-                print(f"{account} balance updated to ${balance_manager.get_balance(account)}")
+                print(f"{account} balance updated to ${account_manager.get_balance(account)}")
             except Exception as e:
                 print(f"An error occurred: {e}")
 
@@ -172,7 +172,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             if delete == "Y":
                 transaction_manager.delete_transaction(transaction_id)
                 print(f"Transaction with ID {transaction_id} deleted.")
-                print(f"{account} balance updated to ${balance_manager.get_balance(account)}")
+                print(f"{account} balance updated to ${account_manager.get_balance(account)}")
 
         else:
             print("Invalid choice. Please enter 1, 2, 3, 4, or 5.")
