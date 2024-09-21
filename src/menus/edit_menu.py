@@ -137,7 +137,6 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
 
         elif choice_sub == "2":
             try:
-                categories = category_manager.get_categories()
                 new_amount = float(input("Enter the new transaction amount: $"))
                 transaction_manager.update_transaction_amount(transaction_id, new_amount)
                 print(f"Transaction amount updated to ${new_amount}.")
