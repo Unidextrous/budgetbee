@@ -1,6 +1,6 @@
 from datetime import datetime
 
-def menu(balance_manager, category_manager, transaction_manager, budget_manager):
+def menu(account_manager, category_manager, transaction_manager, budget_manager):
     print("Add/Set Menu:")
     print("1. Set balance")
     print("2. Add category")
@@ -11,13 +11,13 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
     if choice == "1":
         try:
             account = input("Enter the account name: ").upper()
-            accounts = balance_manager.get_accounts()
+            accounts = account_manager.get_accounts()
             if account in accounts:
                 print("Account already exists. Please edit account or enter different account.")
                 return
             
             balance = float(input("Enter the starting balance: $"))
-            balance_manager.set_balance(account, balance)
+            account_manager.set_balance(account, balance)
             if balance >= 0:
                 print(f"Balance of ${balance} set for {account} account.")
             else:
@@ -50,7 +50,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print("No categories found. Please add at least one category first.")
                 return
 
-            accounts = balance_manager.get_accounts()
+            accounts = account_manager.get_accounts()
             if not accounts:
                 print("No accounts found. Please set the balance of at least one account first.")
                 return
@@ -79,19 +79,19 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
                 print("Invalid input. Please enter a positive number.")
                 return
 
-            balance = balance_manager.get_balance(account)
+            balance = account_manager.get_balance(account)
             
             details = input("Enter transaction details: ").upper()
             date_str = input("Enter the transaction date (YYYY-MM-DD): ")
             date = datetime.strptime(date_str, "%Y-%m-%d")
 
-            balance = balance_manager.get_balance(account)
+            balance = account_manager.get_balance(account)
             if category in income_categories:
                 new_balance = balance + amount
             elif category in expense_categories:
                 new_balance = balance - amount
 
-            balance_manager.update_balance(account, new_balance)
+            account_manager.update_balance(account, new_balance)
             transaction_manager.add_transaction(account, amount, new_balance, category, details, date)
             if category in income_categories:
                 print(f"Transaction of ${amount} added. New {account} balance: ${new_balance}")
