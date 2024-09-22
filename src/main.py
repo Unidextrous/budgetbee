@@ -25,7 +25,7 @@ def main():
     account_manager = AccountManager(db)
     category_manager = CategoryManager(db)
     budget_manager = BudgetManager(db)
-    transaction_manager = TransactionManager(db, account_manager)
+    transaction_manager = TransactionManager(db, account_manager, category_manager)
     visualizer = Visualizer(db, budget_manager, transaction_manager)
 
     import menus.add_menu

@@ -37,6 +37,7 @@ class Database:
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS accounts (
                     account TEXT PRIMARY KEY, 
+                    starting_balance REAL,
                     balance REAL
                 )
             """)

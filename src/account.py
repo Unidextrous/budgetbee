@@ -3,12 +3,19 @@ class AccountManager:
         self.db = db
     
     def set_balance(self, account, balance):
-        self.db.execute("INSERT INTO accounts (account, balance) VALUES (?, ?)",
-           (account, balance)
+        self.db.execute("INSERT INTO accounts (account, starting_balance, balance) VALUES (?, ?, ?)",
+           (account, balance, balance)
         )
 
     def get_accounts(self):
         return [row[0] for row in self.db.fetchall("SELECT account FROM accounts")[::-1]]
+    
+    def get_starting_balance(self, account):
+        balance = self.db.fetchone("SELECT starting_balance FROM accounts WHERE account = ?", (account,))
+        if balance:
+            return balance[0]
+        else:
+            return None
 
     def get_balance(self, account):
         if account == "*":

@@ -134,7 +134,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             else:
                 print("No transactions found for the specified date range.")
         except Exception as e:
-            print(f"An error occurred: {e}")
+            print(f"An error occurred in View Transaction menu: {e}")
 
     elif choice == "4":
         try:
@@ -176,7 +176,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             if not budgets_in_range and not previous_budgets:
                 print("No budgets found for the specified range.")
         except Exception as e:
-            print(f"An error occurred: {e}")
+            print(f"An error occurred in View Budgets menu: {e}")
 
     else:
         print("Invalid choice. Please enter 1, 2, 3, or 4.")
