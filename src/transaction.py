@@ -73,12 +73,16 @@ class TransactionManager:
             # Update the transaction account in the database
             self.db.execute("UPDATE transactions SET account = ? WHERE id = ?", (new_account_name, transaction_id))
             
-    def update_transaction_amount(self, transaction_id, new_amount):
+    def update_transaction_amount(self, transaction_id, category_type, new_amount):
         old_transaction = self.get_transaction_by_id(transaction_id)
         if old_transaction:
             account, old_amount = old_transaction[1], old_transaction[2]
-            self.account_manager.adjust_balance(account, old_amount)
-            self.account_manager.adjust_balance(account, -new_amount)
+            if category_type == "INCOME":
+                self.account_manager.adjust_balance(account, -old_amount)
+                self.account_manager.adjust_balance(account, new_amount)
+            elif category_type == "EXPENSE":
+                self.account_manager.adjust_balance(account, old_amount)
+                self.account_manager.adjust_balance(account, -new_amount)
         self.db.execute("UPDATE transactions SET amount = ? WHERE id = ?", (new_amount, transaction_id))
 
     def update_remaining_balance(self, transaction_id, new_remaining_balance):

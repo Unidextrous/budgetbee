@@ -149,9 +149,13 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         elif choice_sub == "2":
             try:
                 new_amount = float(input("Enter the new transaction amount: $"))
-                transaction_manager.update_transaction_amount(transaction_id, new_amount)
+                if new_amount < 0:
+                    print("Invalid input. Please enter a positive number.")
+                    return
+
+                transaction_manager.update_transaction_amount(transaction_id, category_type, new_amount)
                 print(f"Transaction amount updated to ${new_amount}.")
-                print(f"{account} balance updated to ${account_manager.get_balance(account)}")
+                print(f"{account} balance updated to ${account_manager.get_balance(account)}.")
             except Exception as e:
                 print(f"An error occurred: {e}")
 
@@ -166,13 +170,13 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         
         elif choice_sub == "4":
             new_details = input("Enter the new transaction details: ").upper()
-            transaction_manager.update_transaction_details(transaction_id, new_details)
+            transaction_manager.update_transaction_details(transaction_id, category_type, new_details)
             print(f"Transaction details updated to {new_details}.")
 
         elif choice_sub == "5":
             new_date = input_date()  # Use input_date() here
             if new_date:
-                transaction_manager.update_transaction_date(transaction_id, new_date)
+                transaction_manager.update_transaction_date(transaction_id, category_type, new_date)
                 print(f"Transaction date updated to {new_date}.")
             else:
                 return
