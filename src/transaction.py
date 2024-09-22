@@ -66,7 +66,7 @@ class TransactionManager:
             if category_type == "INCOME":
                 self.account_manager.adjust_balance(old_account_name, -amount)
                 self.account_manager.adjust_balance(new_account_name, amount)
-            else:
+            elif category_type == "EXPENSE":
                 self.account_manager.adjust_balance(old_account_name, amount)
                 self.account_manager.adjust_balance(new_account_name, -amount)
             
@@ -93,11 +93,14 @@ class TransactionManager:
     def update_transaction_date(self, budget_id, new_date):
         self.db.execute("UPDATE transactions SET date = ? WHERE id = ?", (new_date.isoformat(), budget_id))
 
-    def delete(self, transaction_id):
+    def delete(self, transaction_id, category_type):
         transaction = self.get_transaction_by_id(transaction_id)
         if transaction:
             account_name, amount = transaction[1], transaction[2]
             
             # Subtract the amount from the account balance
-            self.account_manager.adjust_balance(account_name, amount)
+            if category_type == "INCOME":
+                self.account_manager.adjust_balance(account_name, -amount)
+            elif category_type == "EXPENSE":
+                self.account_manager.adjust_balance(account_name, amount)
         self.db.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))

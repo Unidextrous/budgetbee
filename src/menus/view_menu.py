@@ -110,21 +110,27 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 transactions = transaction_manager.get_transactions_by_account(account, start_date, end_date)
             
             if transactions:
-                print(f"Transactions from {start_date} to {end_date}:")
+                formatted_start_date = start_date.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'
+                formatted_end_date = end_date.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'
+                print(f"Transactions from {formatted_start_date} to {formatted_end_date}:")
                 for txn in transactions:
                     txn_id, account, amount, remaining_balance, category, details, date = txn
 
-                    amount = f"${amount}"
-                    expense_categories = category_manager.get_categories_by_type("EXPENSE")
-                    if category in expense_categories:
-                        amount = f"-{amount}"
+                    income_categories = category_manager.get_categories_by_type("INCOME")
+                    if category in income_categories:
+                        amount_as_str = f"${amount}"
+                    else:
+                        amount_as_str = f"-${amount}"
 
                     if remaining_balance >= 0:
-                        remaining_balance = f"${remaining_balance}"
+                        remaining_balance_as_str = f"${remaining_balance}"
                     else:
-                        remaining_balance = f"-${remaining_balance * -1}"
-                    
-                    print(f"ID: {txn_id}, Account: {account} Amount: {amount}, Remaining Balance: {remaining_balance} Category: {category}, Details: {details}, Date: {date}")
+                        remaining_balance_as_str = f"-${remaining_balance * -1}"
+
+                    date_object = datetime.fromisoformat(date)  # Assuming `date` is a string in ISO format like '2024-09-22T00:00:00'
+                    formatted_date = date_object.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'                    
+
+                    print(f"ID: {txn_id}, Account: {account} Amount: {amount_as_str}, Remaining Balance: {remaining_balance_as_str} Category: {category}, Details: {details}, Date: {formatted_date}")
             else:
                 print("No transactions found for the specified date range.")
         except Exception as e:
@@ -158,11 +164,15 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             if budgets_in_range:
                 for budget in budgets_in_range:
                     id, category, limit, date = budget
-                    print(f"ID: {id}, Category: {category}, Budget Limit: {limit}, Date: {date}")
+                    date_object = datetime.fromisoformat(date)  # Assuming `date` is a string in ISO format like '2024-09-22T00:00:00'
+                    formatted_date = date_object.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'
+                    print(f"ID: {id}, Category: {category}, Budget Limit: {limit}, Date: {formatted_date}")
             if previous_budgets:
                 most_recent_budget = previous_budgets[0]
                 id, category, limit, date = most_recent_budget
-                print(f"ID: {id}, Category: {category}, Budget Limit: {limit}, Start Date: {date}")
+                date_object = datetime.fromisoformat(date)  # Assuming `date` is a string in ISO format like '2024-09-22T00:00:00'
+                formatted_date = date_object.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'
+                print(f"ID: {id}, Category: {category}, Budget Limit: {limit}, Start Date: {formatted_date}")
             if not budgets_in_range and not previous_budgets:
                 print("No budgets found for the specified range.")
         except Exception as e:

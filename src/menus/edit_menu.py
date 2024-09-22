@@ -1,41 +1,5 @@
 from datetime import datetime
-
-def select_account(account_manager):
-    accounts = account_manager.get_accounts()
-    if not accounts:
-        print("No accounts available.")
-        return None
-    print(f"Available accounts: {', '.join(accounts)}")
-    account_name = input("Enter the account name: ").upper()
-    if account_name not in accounts:
-        print("Account not found.")
-        return None
-    return account_name
-
-def select_category(category_manager):
-    income_categories = category_manager.get_categories_by_type("INCOME")
-    expense_categories = category_manager.get_categories_by_type("EXPENSE")
-    categories = income_categories + expense_categories
-    if not categories:
-        print("No categories available.")
-        return None
-    if income_categories:
-        print(f"Available INCOME categories: {', '.join(income_categories)}")
-    if expense_categories:
-        print(f"Available EXPENSE categories: {', '.join(expense_categories)}")
-    category = input("Enter the category: ").upper()
-    if category not in categories:
-        print("Category not found.")
-        return None
-    return category
-
-def input_date():
-    try:
-        date_str = input("Enter the date (YYYY-MM-DD): ")
-        return datetime.strptime(date_str, "%Y-%m-%d")
-    except ValueError:
-        print("Invalid date format.")
-        return None
+from menus.menu_helpers import *
     
 def update_balance(account_manager, account_name):
     try:
@@ -53,15 +17,18 @@ def update_balance(account_manager, account_name):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def confirm_deletion(manager, item, item_type):
+def confirm_deletion(manager, item, item_type, category_type=None):
     delete = input(f"Are you sure you wish to delete this {item_type}? Y/N: ").upper()
     if delete == "Y":
-        manager.delete(item)
-        print(f"{item} account deleted.")
+        if item_type == "Transaction":
+            manager.delete(item, category_type)
+        else:
+            manager.delete(item)
+        print(f"{item_type} {item} deleted.")
 
 def menu(account_manager, category_manager, transaction_manager, budget_manager):
     print("Edit:")
-    print("1. Edit balance")
+    print("1. Edit account")
     print("2. Edit category")
     print("3. Edit transaction")
     print("4. Edit budget")
@@ -93,7 +60,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             update_balance(account_manager, account_name)
 
         elif choice_sub == "3":
-            confirm_deletion(account_manager, account_name, "account")
+            confirm_deletion(account_manager, account_name, "Account")
 
     
     elif choice == "2":
@@ -120,7 +87,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             print(f"Category renamed from {category} to {new_name}.")
 
         elif choice_sub == "2":
-            confirm_deletion(category_manager, category, "category")
+            confirm_deletion(category_manager, category, "Category")
 
         else:
             print("Invalid choice. Please enter 1 or 2.")
@@ -141,6 +108,9 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             return
         
         txn_id, account, amount, remaining_balance, category, details, date = transaction
+        date_object = datetime.fromisoformat(date)  # Assuming `date` is a string in ISO format like '2024-09-22T00:00:00'
+        formatted_date = date_object.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'
+        
         print(f"ID: {txn_id}, Account: {account} Amount: ${amount}, Remaining balance: ${remaining_balance} Category: {category}, Details: {details}, Date: {date}")
         print("1. Update transaction account")
         print("2. Update transaction amount")
@@ -154,13 +124,15 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             print("Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.")
             return
 
+        income_categories = category_manager.get_categories_by_type("INCOME")
+        expense_categories = category_manager.get_categories_by_type("EXPENSE")
+        if category in income_categories:
+            category_type = "INCOME"
+        elif category in expense_categories:
+            category_type = "EXPENSE"
+
         if choice_sub == "1":
             accounts = account_manager.get_accounts()
-            income_categories = category_manager.get_categories_by_type("INCOME")
-            if category in income_categories:
-                category_type = "INCOME"
-            else:
-                category_type = "EXPENSE"
             accounts.remove(account)
             print(f"Available accounts: {', '.join(accounts)}")
             new_account = input("Enter the new account name: ").upper()
@@ -206,10 +178,11 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 return
 
         elif choice_sub == "6":
-            confirm_deletion(transaction_manager, transaction_id, "transaction")
+            confirm_deletion(transaction_manager, transaction_id, "Transaction", category_type)
+            print(f"{account} balance updated to ${account_manager.get_balance(account)}")
 
         else:
-            print("Invalid choice. Please enter 1, 2, 3, 4, or 5.")
+            print("Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.")
     
     elif choice == "4":
         try:
@@ -224,7 +197,10 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             return
         
         id, category, limit, date = budget
-        print(f"ID: {id}, Category: {category}, Limit: {limit}, Date: {date}")
+        date_object = datetime.fromisoformat(date)  # Assuming `date` is a string in ISO format like '2024-09-22T00:00:00'
+        formatted_date = date_object.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'
+
+        print(f"ID: {id}, Category: {category}, Limit: {limit}, Date: {formatted_date}")
         print("1. Update budget limit")
         print("2. Update budget category")
         print("3. Update budget date")
