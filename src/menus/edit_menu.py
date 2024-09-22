@@ -135,13 +135,6 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             print("Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.")
             return
 
-        income_categories = category_manager.get_categories_by_type("INCOME")
-        expense_categories = category_manager.get_categories_by_type("EXPENSE")
-        if category in income_categories:
-            category_type = "INCOME"
-        elif category in expense_categories:
-            category_type = "EXPENSE"
-
         if choice_sub == "1":
             accounts = account_manager.get_accounts()
             accounts.remove(account)
@@ -153,7 +146,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             elif new_account not in accounts:
                 print("Account not found. Please enter a valid account.")
                 return
-            transaction_manager.update_transaction_account(transaction_id, category_type, new_account)
+            transaction_manager.update_transaction_account(transaction_id, category, new_account)
             print(f"{account} balance updated to ${account_manager.get_balance(account)}")
             print(f"{new_account} balance updated to ${account_manager.get_balance(new_account)}")
 
@@ -164,7 +157,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                     print("Invalid input. Please enter a positive number.")
                     return
 
-                transaction_manager.update_transaction_amount(transaction_id, category_type, new_amount)
+                transaction_manager.update_transaction_amount(transaction_id, category, new_amount)
                 print(f"Transaction amount updated to ${new_amount}.")
                 print(f"{account} balance updated to ${account_manager.get_balance(account)}.")
             except Exception as e:
@@ -181,19 +174,19 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         
         elif choice_sub == "4":
             new_details = input("Enter the new transaction details: ").upper()
-            transaction_manager.update_transaction_details(transaction_id, category_type, new_details)
+            transaction_manager.update_transaction_details(transaction_id, category, new_details)
             print(f"Transaction details updated to {new_details}.")
 
         elif choice_sub == "5":
             new_date = input_date()  # Use input_date() here
             if new_date:
-                transaction_manager.update_transaction_date(transaction_id, category_type, new_date)
+                transaction_manager.update_transaction_date(transaction_id, category, new_date)
                 print(f"Transaction date updated to {new_date}.")
             else:
                 return
 
         elif choice_sub == "6":
-            confirm_deletion(transaction_manager, transaction_id, "Transaction", category_type)
+            confirm_deletion(transaction_manager, transaction_id, "Transaction", category)
             print(f"{account} balance updated to ${account_manager.get_balance(account)}")
 
         else:

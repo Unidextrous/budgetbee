@@ -14,14 +14,6 @@ class TransactionManager:
             INSERT INTO transactions
             (account, amount, remaining_balance, category, details, date) VALUES(?, ?, ?, ?, ?, ?)
         """, (account, amount, 0, category, details, date.isoformat()))
-
-        income_categories = self.category_manager.get_categories_by_type("INCOME")
-        expense_categories = self.category_manager.get_categories_by_type("EXPENSE")
-
-        if category in income_categories:
-            category_type = "INCOME"
-        elif category in expense_categories:
-            category_type = "EXPENSE"
         
         # After adding, recalculate the remaining balances
         self.update_all_remaining_balances(account)
@@ -70,11 +62,13 @@ class TransactionManager:
             ORDER BY date, id
         """, (account, date, date, transaction_id))
 
-    def update_transaction_account(self, transaction_id, category_type, new_account_name):
+    def update_transaction_account(self, transaction_id, category, new_account_name):
         # Get the old transaction details
         old_transaction = self.get_transaction_by_id(transaction_id)
         if old_transaction:
             old_account_name, amount = old_transaction[1], old_transaction[2]
+
+            category_type = self.category_manager.get_category_type(category)
             
             # Adjust balances between the two accounts
             if category_type == "INCOME":
@@ -87,10 +81,13 @@ class TransactionManager:
             # Update the transaction account in the database
             self.db.execute("UPDATE transactions SET account = ? WHERE id = ?", (new_account_name, transaction_id))
             
-    def update_transaction_amount(self, transaction_id, category_type, new_amount):
+    def update_transaction_amount(self, transaction_id, category, new_amount):
         old_transaction = self.get_transaction_by_id(transaction_id)
         if old_transaction:
             account, old_amount = old_transaction[1], old_transaction[2]
+
+            category_type = self.category_manager.get_category_type(category)
+
             if category_type == "INCOME":
                 self.account_manager.adjust_balance(account, -old_amount)
                 self.account_manager.adjust_balance(account, new_amount)
@@ -114,11 +111,11 @@ class TransactionManager:
         for transaction in transactions:
             transaction_id, amount, category, date = transaction
 
-            income_categories = self.category_manager.get_categories_by_type("INCOME")
-            expense_categories = self.category_manager.get_categories_by_type("EXPENSE")
-            if category in income_categories:
+            category_type = self.category_manager.get_category_type(category)
+
+            if category_type == "INCOME":
                 remaining_balance += amount
-            elif category in expense_categories:
+            elif category_type == "EXPENSE":
                 remaining_balance -= amount
 
             self.db.execute("""

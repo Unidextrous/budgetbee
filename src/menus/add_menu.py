@@ -18,7 +18,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 return
             
             balance = float(input("Enter the starting balance: $"))
-            account_manager.set_balance(account, balance)
+            account_manager.add_account(account, balance)
             if balance >= 0:
                 print(f"Balance of ${balance} set for {account} account.")
             else:
@@ -79,6 +79,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             date = input_date()
 
             balance = account_manager.get_balance(account)
+            
             if category in income_categories:
                 new_balance = balance + amount
             elif category in expense_categories:
