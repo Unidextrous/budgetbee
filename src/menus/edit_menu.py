@@ -156,12 +156,21 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
 
         if choice_sub == "1":
             accounts = account_manager.get_accounts()
+            income_categories = category_manager.get_categories_by_type("INCOME")
+            if category in income_categories:
+                category_type = "INCOME"
+            else:
+                category_type = "EXPENSE"
+            accounts.remove(account)
             print(f"Available accounts: {', '.join(accounts)}")
             new_account = input("Enter the new account name: ").upper()
-            if account not in accounts:
+            if new_account == account:
+                print("Please enter a valid account.")
+                return
+            elif new_account not in accounts:
                 print("Account not found. Please enter a valid account.")
                 return
-            transaction_manager.update_transaction_account(transaction_id, new_account)
+            transaction_manager.update_transaction_account(transaction_id, category_type, new_account)
             print(f"{account} balance updated to ${account_manager.get_balance(account)}")
             print(f"{new_account} balance updated to ${account_manager.get_balance(new_account)}")
 
@@ -188,7 +197,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             transaction_manager.update_transaction_details(transaction_id, new_details)
             print(f"Transaction details updated to {new_details}.")
 
-        if choice_sub == "5":
+        elif choice_sub == "5":
             new_date = input_date()  # Use input_date() here
             if new_date:
                 transaction_manager.update_transaction_date(transaction_id, new_date)

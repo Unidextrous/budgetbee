@@ -55,7 +55,24 @@ class TransactionManager:
             AND (date > ? OR (date = ? AND id > ?))
             ORDER BY date, id
         """, (account, date, date, transaction_id))
-    
+
+    def update_transaction_account(self, transaction_id, category_type, new_account_name):
+        # Get the old transaction details
+        old_transaction = self.get_transaction_by_id(transaction_id)
+        if old_transaction:
+            old_account_name, amount = old_transaction[1], old_transaction[2]
+            
+            # Adjust balances between the two accounts
+            if category_type == "INCOME":
+                self.account_manager.adjust_balance(old_account_name, -amount)
+                self.account_manager.adjust_balance(new_account_name, amount)
+            else:
+                self.account_manager.adjust_balance(old_account_name, amount)
+                self.account_manager.adjust_balance(new_account_name, -amount)
+            
+            # Update the transaction account in the database
+            self.db.execute("UPDATE transactions SET account = ? WHERE id = ?", (new_account_name, transaction_id))
+            
     def update_transaction_amount(self, transaction_id, new_amount):
         old_transaction = self.get_transaction_by_id(transaction_id)
         if old_transaction:
@@ -63,19 +80,6 @@ class TransactionManager:
             self.account_manager.adjust_balance(account, old_amount)
             self.account_manager.adjust_balance(account, -new_amount)
         self.db.execute("UPDATE transactions SET amount = ? WHERE id = ?", (new_amount, transaction_id))
-
-    def update_transaction_account(self, transaction_id, new_account_name):
-        # Get the old transaction details
-        old_transaction = self.get_transaction_by_id(transaction_id)
-        if old_transaction:
-            old_account_name, amount = old_transaction[1], old_transaction[2]
-            
-            # Adjust balances between the two accounts
-            self.account_manager.adjust_balance(old_account_name, amount)
-            self.account_manager.adjust_balance(new_account_name, -amount)
-            
-            # Update the transaction account in the database
-            self.db.execute("UPDATE transactions SET account = ? WHERE id = ?", (new_account_name, transaction_id))
 
     def update_remaining_balance(self, transaction_id, new_remaining_balance):
         self.db.execute("UPDATE transactions SET remaining_balance = ? WHERE id = ?", (new_remaining_balance, transaction_id))
