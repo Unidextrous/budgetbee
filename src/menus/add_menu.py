@@ -47,7 +47,7 @@ def menu(balance_manager, category_manager, transaction_manager, budget_manager)
             expense_categories = category_manager.get_categories_by_type("EXPENSE")
             categories = income_categories + expense_categories
             if not categories:
-                print("No categories found. Please set a budget for at least one category first.")
+                print("No categories found. Please add at least one category first.")
                 return
 
             accounts = balance_manager.get_accounts()
