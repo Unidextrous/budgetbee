@@ -28,7 +28,7 @@ class AccountManager:
     def reset_balance(self, account, new_balance):
         self.db.execute("UPDATE accounts SET balance = ? WHERE account = ?", (new_balance, account))
 
-    def delete_account(self, account):
+    def delete(self, account):
         self.db.execute("DELETE FROM accounts WHERE account = ?", (account,))
         self.db.execute("DELETE FROM transactions WHERE account = ?", (account,))
 

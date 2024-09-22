@@ -89,7 +89,7 @@ class TransactionManager:
     def update_transaction_date(self, budget_id, new_date):
         self.db.execute("UPDATE transactions SET date = ? WHERE id = ?", (new_date.isoformat(), budget_id))
 
-    def delete_transaction(self, transaction_id):
+    def delete(self, transaction_id):
         transaction = self.get_transaction_by_id(transaction_id)
         if transaction:
             account_name, amount = transaction[1], transaction[2]

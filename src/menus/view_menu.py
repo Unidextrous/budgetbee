@@ -21,7 +21,10 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 print(f"- {account}: ${balance}")
             else:
                 print(f"- {account}: -${balance * -1}")
-        print(f"- TOTAL BALANCE: ${total_balance}")
+        if total_balance >= 0:
+            print(f"TOTAL BALANCE: ${total_balance}")
+        else:
+            print(f"TOTAL BALANCE: -${total_balance * -1}")
         
             
     elif choice == "2":
