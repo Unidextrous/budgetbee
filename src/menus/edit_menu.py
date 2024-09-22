@@ -108,10 +108,21 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             return
         
         txn_id, account, amount, remaining_balance, category, details, date = transaction
+        income_categories = category_manager.get_categories_by_type("INCOME")
+        expense_categories = category_manager.get_categories_by_type("EXPENSE")
+        if category in income_categories:
+            amount_as_str = f"${amount}"
+        elif category in expense_categories:
+            amount_as_str = f"-${amount}"
+        if remaining_balance >= 0:
+            remaining_balance_as_str = f"${remaining_balance}"
+        else:
+            remaining_balance_as_str = f"-${remaining_balance}"
+
         date_object = datetime.fromisoformat(date)  # Assuming `date` is a string in ISO format like '2024-09-22T00:00:00'
         formatted_date = date_object.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'
         
-        print(f"ID: {txn_id}, Account: {account} Amount: ${amount}, Remaining balance: ${remaining_balance} Category: {category}, Details: {details}, Date: {date}")
+        print(f"ID: {txn_id}, Account: {account} Amount: {amount_as_str}, Remaining balance: ${remaining_balance_as_str} Category: {category}, Details: {details}, Date: {date}")
         print("1. Update transaction account")
         print("2. Update transaction amount")
         print("3. Update transaction category")
