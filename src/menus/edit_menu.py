@@ -1,23 +1,35 @@
 from datetime import datetime
 from menus.menu_helpers import *
-    
+
+# Updates the balance for the specified account in the account manager
 def update_balance(account_manager, account_name):
     try:
+        # Retrieve current balance
         current_balance = account_manager.get_balance(account_name)
+
+        # Display the current balance (formatted for positive/negative values)
         if current_balance >= 0:
             print(f"Current balance: ${current_balance}")
         else:
             print(f"Current balance: -${current_balance * -1}")
+        
+        # Prompt the user for a new balance
         new_balance = float(input("Enter the new balance: $"))
+
+        # Update the balance in the account manager
         account_manager.reset_balance(account_name, new_balance)
+
+        # Display the updated balance
         if new_balance >= 0:
             print(f"{account_name} balance set to ${new_balance}")
         else:
             print(f"{account_name} balance set to -${new_balance * -1}")
     except Exception as e:
+        # Catch and display any errors that occur
         print(f"An error occurred: {e}")
         return None
 
+# Confirms the deletion of an item (account, category, or transaction)
 def confirm_deletion(manager, item, item_type, category_type=None):
     delete = input(f"Are you sure you wish to delete this {item_type}? Y/N: ").upper()
     if delete == "Y":
@@ -27,6 +39,7 @@ def confirm_deletion(manager, item, item_type, category_type=None):
             manager.delete(item)
         print(f"{item_type} {item} deleted.")
 
+# Displays the main edit menu and handles user input for account, category, transaction, and budget edits
 def menu(account_manager, category_manager, transaction_manager, budget_manager):
     print("Edit:")
     print("1. Edit account")
@@ -35,6 +48,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
     print("4. Edit budget")
     choice = input("Enter your choice (1/2/3/4): ")
 
+    # Edit Account menu
     if choice == "1":
         account_name = select_account(account_manager)
         if not account_name:
@@ -50,6 +64,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             print("Invalid choice. Please enter 1, 2, or 3.")
             return
         
+        # Rename account option
         if choice_sub == "1":
             new_name = input("New account name: ").upper()
             if new_name in account_manager.get_accounts():
@@ -58,13 +73,15 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             account_manager.rename_account(account_name, new_name)
             print(f"Renamed {account_name} to {new_name}")
         
+        # Change account balance option
         elif choice_sub == "2":
             update_balance(account_manager, account_name)
 
+        # Delete account option
         elif choice_sub == "3":
             confirm_deletion(account_manager, account_name, "Account")
 
-    
+    # Edit Category menu
     elif choice == "2":
         category = select_category(category_manager)
         if not category:
@@ -79,6 +96,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             print("Invalid choice. Please enter 1, 2, or 3.")
             return
 
+        # Rename category option
         if choice_sub == "1":
             new_name = input("Enter the new name for the category: ").upper()
             categories = category_manager.get_categories_by_type()
@@ -88,13 +106,15 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
 
             category_manager.rename_category(category, new_name)
             print(f"Category renamed from {category} to {new_name}.")
-
+        
+        # Delete category option
         elif choice_sub == "2":
             confirm_deletion(category_manager, category, "Category")
 
         else:
             print("Invalid choice. Please enter 1 or 2.")
 
+    # Edit Transaction menu
     elif choice == "3":
         try:
             transaction_id = int(input("Enter the ID of the transaction to edit: "))
@@ -105,15 +125,19 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             print(f"An error occurred: {e}")
             return None
 
+        # Retrieve the transaction by its ID
         transaction = transaction_manager.get_transaction_by_id(transaction_id)
 
         if transaction == None:
             print(f"Transaction with ID {transaction_id} not found. Please check the ID and try again.")
             return
         
+        # Extract transaction details
         txn_id, account, amount, remaining_balance, category, details, date = transaction
         income_categories = category_manager.get_categories_by_type("INCOME")
         expense_categories = category_manager.get_categories_by_type("EXPENSE")
+
+        # Format amount and remaining balance for display based on category type (income/expense)
         if category in income_categories:
             amount_as_str = f"${amount}"
         elif category in expense_categories:
@@ -123,10 +147,13 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         else:
             remaining_balance_as_str = f"-${remaining_balance}"
 
+        # Format transaction date for display
         date_object = datetime.fromisoformat(date)  # Assuming `date` is a string in ISO format like '2024-09-22T00:00:00'
         formatted_date = date_object.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'
         
-        print(f"ID: {txn_id}, Account: {account} Amount: {amount_as_str}, Remaining balance: {remaining_balance_as_str} Category: {category}, Details: {details}, Date: {date}")
+        print(f"ID: {txn_id}, Account: {account} Amount: {amount_as_str}, Remaining balance: {remaining_balance_as_str} Category: {category}, Details: {details}, Date: {formatted_date}")
+        
+        # Display transaction edit options
         print("1. Update transaction account")
         print("2. Update transaction amount")
         print("3. Update transaction category")
@@ -139,6 +166,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             print("Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.")
             return
 
+        # Update transaction account option
         if choice_sub == "1":
             accounts = account_manager.get_accounts()
             accounts.remove(account)
@@ -157,6 +185,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             print(f"{account} balance updated to ${account_manager.get_balance(account)}")
             print(f"{new_account} balance updated to ${account_manager.get_balance(new_account)}")
 
+        # Update transaction amount option
         elif choice_sub == "2":
             try:
                 new_amount = float(input("Enter the new transaction amount: $"))
@@ -172,6 +201,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 print(f"An error occurred: {e}")
                 return None
 
+        # Update transaction category option
         elif choice_sub == "3":
             # Get the current category type (INCOME or EXPENSE)
             current_type = category_manager.get_category_type(category)
@@ -199,11 +229,13 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             else:
                 print("Category does not exist. Please enter a valid category.")
         
+        # Update transaction details option
         elif choice_sub == "4":
             new_details = input("Enter the new transaction details: ").upper()
             transaction_manager.update_transaction_details(transaction_id, category, new_details)
             print(f"Transaction details updated to {new_details}.")
 
+        # Update transaction date option
         elif choice_sub == "5":
             new_date = input_date()  # Use input_date() here
             if new_date:
@@ -212,6 +244,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             else:
                 return
 
+        # Delete category option
         elif choice_sub == "6":
             confirm_deletion(transaction_manager, transaction_id, "Transaction", category)
             transaction_manager.update_all_remaining_balances(account)
@@ -226,68 +259,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         
     
     elif choice == "4":
-        try:
-            budget_id = int(input("Enter the ID of the budget to edit: "))
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return None
+        pass
 
-        budget = budget_manager.get_budget_by_id(budget_id)
-
-        if budget == None:
-            print(f"No budget with ID {budget_id}. Please enter a valid ID.")
-            return
-        
-        id, category, limit, date = budget
-        date_object = datetime.fromisoformat(date)  # Assuming `date` is a string in ISO format like '2024-09-22T00:00:00'
-        formatted_date = date_object.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'
-
-        print(f"ID: {id}, Category: {category}, Limit: {limit}, Date: {formatted_date}")
-        print("1. Update budget limit")
-        print("2. Update budget category")
-        print("3. Update budget date")
-        print("4. Delete budget")
-        choice_sub = input("Enter your choice (1/2/3/4): ")
-
-        if choice_sub == "1":
-            try:
-                new_limit = float(input("Enter the new budget limit: "))
-                budget_manager.update_budget_limit(budget_id, new_limit)
-                print(f"Budget limit updated to ${new_limit}.")
-            except Exception as e:
-                print(f"An error occurred: {e}")
-                return None
-
-        elif choice_sub == "2":
-            categories = category_manager.get_categories_by_type("EXPENSE")
-            if not categories:
-                print("No categories available to rename.")
-                return
-
-            print(f"Available EXPENSE categories: {', '.join(categories)}")
-            new_category = input("Enter new category: ").upper()
-            categories = category_manager.get_categories_by_type()
-            if new_category in categories:
-                budget_manager.update_category(budget_id, new_category)
-                print(f"Category updated to {new_category}.")
-            else:
-                print("Category does not exist. Please enter a valid category.")
-
-        elif choice_sub == "3":
-            try:
-                new_date_str = input("Enter the new date (YYYY-MM-DD): ")
-                new_date = datetime.strptime(new_date_str, "%Y-%m-%d")
-                budget_manager.update_budget_date(budget_id, new_date)
-                print(f"Budget date updated to {new_date}.")
-            except Exception as e:
-                print(f"An error occurred: {e}")
-                return None
-
-        elif choice_sub == "4":
-            delete = input("Are you sure you wish to delete this budget? Y/N: ").upper()
-            if delete == "Y":
-                budget_manager.delete_budget(budget_id)
-                print(f"Budget with ID {budget_id} deleted.")
-
-        else:
-            print("Invalid choice. Please enter 1, 2, 3, or 4.")
+    else:
+        print("Invalid choice. Please enter 1, 2, 3, or 4.")
