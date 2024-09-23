@@ -9,6 +9,18 @@ class BudgetManager:
            (category, start_date.isoformat(), budget_limit)
         )
 
+    def get_budgets(self, start_date, end_date):
+        # Retrieves all budgets within the specified date range.
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+
+        return self.db.fetchall(
+            """SELECT id, category, budget_limit, start_date
+            FROM budgets
+            WHERE DATE(start_date) >= DATE(?) AND DATE(start_date) <= DATE(?)""",
+            (start_date_str, end_date_str)
+        )
+
     def get_budgets_by_category(self, category, start_date, end_date):
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")

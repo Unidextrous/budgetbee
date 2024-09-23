@@ -57,6 +57,18 @@ class TransactionManager:
     def get_transaction_by_id(self, transaction_id):
          # Retrieve a specific transaction by its ID
          return self.db.fetchone("SELECT * FROM transactions WHERE id = ?", (transaction_id,))
+    
+    def get_total_spending_by_category(self, category, start_date, end_date):
+        # Calculates total spending for a specific category within a date range.
+        result = self.db.fetchone(
+            """SELECT SUM(amount) 
+            FROM transactions 
+            WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)""",
+            (category, start_date, end_date)
+        )
+
+        # Return the total amount, or 0 if no transactions found
+        return result[0] if result[0] is not None else 0.0
 
     def update_transaction_account(self, transaction_id, category, new_account_name):
         # Update the account associated with a transaction and adjust balances accordingly
