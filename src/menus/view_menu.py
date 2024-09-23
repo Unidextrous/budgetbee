@@ -121,7 +121,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                         amount_as_str = f"${amount}"
                     else:
                         amount_as_str = f"-${amount}"
-
+                    print(remaining_balance)
                     if remaining_balance >= 0:
                         remaining_balance_as_str = f"${remaining_balance}"
                     else:

@@ -4,17 +4,11 @@ class CategoryManager:
 
     # Method to add a new category to the database
     def add_category(self, category, category_type):
-        with self.db.conn:  # Use a context manager for transaction management
-            existing_categories = self.get_categories_by_type()  # Retrieve existing categories
-            if category in existing_categories:
-                print("Category already exists.")  # Check for duplicates
-                return
-            
-            # Insert the new category into the categories table
-            self.db.execute("""
-                INSERT INTO categories (category, type) VALUES (?, ?)
-            """, (category, category_type))
-            print(f"Category '{category}' added as {category_type}.")
+        # Insert the new category into the categories table
+        self.db.execute("""
+            INSERT INTO categories (category, type) VALUES (?, ?)
+        """, (category, category_type))
+        print(f"Category '{category}' added as {category_type}.")
     
     # Method to retrieve categories, optionally filtered by type
     def get_categories_by_type(self, category_type=None):
