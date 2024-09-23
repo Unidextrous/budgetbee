@@ -159,6 +159,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 print("No transactions found for the specified date range.")
         except Exception as e:
             print(f"An error occurred in View Transaction menu: {e}")
+            return None
 
     elif choice == "4":
         # Option to view budgets

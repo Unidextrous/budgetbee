@@ -33,6 +33,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 print(f"Added account {account} with a balance of -${balance * -1}.")
         except Exception as e:
             print(f"An error occurred in Add Account menu: {e}")
+            return None
     
     # Choice 2: Add category
     elif choice == "2":
@@ -111,6 +112,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 print(f"Transaction of -${amount} added. New {account} balance: ${new_balance}")
         except Exception as e:
             print(f"An error occurred in Add Transaction menu: {e}")
+            return None
 
     # Choice 4: Set budget
     elif choice == "4":
@@ -144,6 +146,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             print(f"Budget set for category {category} with limit {budget_limit} as of {start_date_str}.")
         except Exception as e:
             print(f"An error occurred in Set Budget menu: {e}")
+            return None
 
     # Handle invalid menu choice
     else:

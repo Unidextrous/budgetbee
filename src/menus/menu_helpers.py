@@ -8,7 +8,7 @@ def select_account(account_manager):
     print(f"Available accounts: {', '.join(accounts)}")
     account_name = input("Enter the account name: ").upper()
     if account_name not in accounts:
-        print("Account not found.")
+        print(f"Account {account_name} not found.")
         return None
     return account_name
 
@@ -25,7 +25,7 @@ def select_category(category_manager):
         print(f"Available EXPENSE categories: {', '.join(expense_categories)}")
     category = input("Enter the category: ").upper()
     if category not in categories:
-        print("Category not found.")
+        print(f"Category {category} not found.")
         return None
     return category
 
