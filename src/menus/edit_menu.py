@@ -122,7 +122,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         date_object = datetime.fromisoformat(date)  # Assuming `date` is a string in ISO format like '2024-09-22T00:00:00'
         formatted_date = date_object.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'
         
-        print(f"ID: {txn_id}, Account: {account} Amount: {amount_as_str}, Remaining balance: ${remaining_balance_as_str} Category: {category}, Details: {details}, Date: {date}")
+        print(f"ID: {txn_id}, Account: {account} Amount: {amount_as_str}, Remaining balance: {remaining_balance_as_str} Category: {category}, Details: {details}, Date: {date}")
         print("1. Update transaction account")
         print("2. Update transaction amount")
         print("3. Update transaction category")
@@ -187,6 +187,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
 
         elif choice_sub == "6":
             confirm_deletion(transaction_manager, transaction_id, "Transaction", category)
+            transaction_manager.update_all_remaining_balances(account)
             print(f"{account} balance updated to ${account_manager.get_balance(account)}")
 
         else:
