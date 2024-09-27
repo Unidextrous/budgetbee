@@ -127,18 +127,25 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                     # Validate the category input
                     if budget_category in expense_categories:
                         # Ask for the amount to allocate to the chosen category
-                        budget_limit = float(input(f"Enter the budget amount (MAX ${remaining_amount}): $"))
+                        budget_limit = -1  # Initialize with an invalid value
+                        while budget_limit <= 0:
+                            try:
+                                budget_limit = float(input(f"Enter the budget amount (MAX ${remaining_amount}): $"))
+                                if budget_limit <= 0:
+                                    print("Please enter a positive budget amount. If you'd like to change the amount of a budget, go to edit menu.")
+                                elif budget_limit > remaining_amount:
+                                    print(f"Amount exceeds remaining income. Please enter a value less than or equal to ${remaining_amount}.")
+                                    budget_limit = -1  # Reset to invalid
+                            except ValueError:
+                                print("Invalid input. Please enter a valid number.")
 
-                        # Ensure the budget amount does not exceed the remaining amount
-                        if budget_limit <= remaining_amount:
-                            # Set the budget for the selected category
-                            budget_manager.set_budget(budget_category, budget_limit, date)
+                        # Set the budget for the selected category
+                        budget_manager.set_budget(budget_category, budget_limit, date)
+                        print(f"Budget of ${budget_limit} allocated to category {budget_category}.")
 
-                            # Update remaining amount
-                            remaining_amount -= budget_limit
+                        # Update remaining amount
+                        remaining_amount -= budget_limit
 
-                        else:
-                            print(f"Amount exceeds remaining income. Please enter an less than or equal to ${remaining_amount}, or edit a budget in edit menu.")
                     else:
                         print("Invalid category. Please enter a valid expense category.")
                 else:
