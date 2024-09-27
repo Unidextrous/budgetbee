@@ -76,7 +76,7 @@ class Database:
                     id INTEGER PRIMARY KEY,
                     category TEXT,
                     budget_limit REAL,
-                    start_date TEXT,
+                    date TEXT,
                     FOREIGN KEY (category) REFERENCES categories (category)
                 )
             """)

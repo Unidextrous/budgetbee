@@ -183,7 +183,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 return
             transaction_manager.update_transaction_account(transaction_id, category, new_account)
             print(f"{account} balance updated to ${account_manager.get_balance(account)}")
-            print(f"{new_account} balance updated to ${account_manager.get_balance(new_account)}")
+            account = new_account
 
         # Update transaction amount option
         elif choice_sub == "2":
@@ -248,7 +248,6 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         elif choice_sub == "6":
             confirm_deletion(transaction_manager, transaction_id, "Transaction", category)
             transaction_manager.update_all_remaining_balances(account)
-            print(f"{account} balance updated to ${account_manager.get_balance(account)}")
 
         else:
             print("Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.")

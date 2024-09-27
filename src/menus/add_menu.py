@@ -7,8 +7,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
     print("1. Add account")
     print("2. Add category")
     print("3. Add transaction")
-    print("4. Set budget")
-    choice = input("Enter your choice (1/2/3/4): ")
+    choice = input("Enter your choice (1/2/3): ")
 
     # Choice 1: Add account
     if choice == "1":
@@ -113,47 +112,42 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         except Exception as e:
             print(f"An error occurred in Add Transaction menu: {e}")
             return None
+        
+        if category_type == "INCOME":
+            remaining_amount = amount
+            print(f"Total income: ${amount}")
 
-    # Choice 4: Set budget
-    elif choice == "4":
-        try:
-            # Fetch available EXPENSE categories
-            income_categories = category_manager.get_categories_by_type("INCOME")
-            expense_categories = category_manager.get_categories_by_type("EXPENSE")
-            if not expense_categories:
-                print("No EXPENSE categories found. Please add at least one EXPENSE category first.")
-                return    
+            while remaining_amount > 0:
+                set_budget = input(f"You have ${remaining_amount} left to allocate. Would you like to allocate it to a budget category? (Y/N): ").strip().upper()
+                if set_budget == "Y":
+                    # Fetch available expense categories for budgeting
+                    print(f"Available categories: {', '.join(expense_categories)}")
+                    budget_category = input("Enter the category to allocate budget: ").upper()
 
-            # Display available expense categories and get the user's input for the category        
-            print(f"Available categories: {', '.join(set(expense_categories))}")
-            category = input("Enter the budget category name: ").upper()
+                    # Validate the category input
+                    if budget_category in expense_categories:
+                        # Ask for the amount to allocate to the chosen category
+                        budget_limit = float(input(f"Enter the budget amount (MAX ${remaining_amount}): $"))
 
-            # Ensure the category is a valid EXPENSE category
-            if category not in expense_categories:
-                if category in income_categories:
-                    print(f"{category} is an INCOME category. Please add an EXPENSE category.")
-                    return
-                print("Category not found. Please enter a valid category.")
-                return
-            
-            # Get the budget limit and start date from the user
-            budget_limit = float(input("Enter the budget limit: $"))
-            if budget_limit < 0:
-                raise ValueError("Amount must be positive.")
+                        # Ensure the budget amount does not exceed the remaining amount
+                        if budget_limit <= remaining_amount:
+                            # Set the budget for the selected category
+                            budget_manager.set_budget(budget_category, budget_limit, date)
 
-            start_date_str = input("Enter the start date (YYYY-MM-DD): ")
-            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+                            # Update remaining amount
+                            remaining_amount -= budget_limit
 
-            # Set the budget for the selected category
-            budget_manager.set_budget(category, budget_limit, start_date)
-            print(f"Budget set for category {category} with limit {budget_limit} as of {start_date_str}.")
-        except ValueError as ve:
-            print(f"Input error: {ve}")
-            return None
-        except Exception as e:
-            print(f"An error occurred in Set Budget menu: {e}")
-            return None
+                        else:
+                            print(f"Amount exceeds remaining income. Please enter an less than or equal to ${remaining_amount}, or edit a budget in edit menu.")
+                    else:
+                        print("Invalid category. Please enter a valid expense category.")
+                else:
+                    # If user declines to allocate more budget, break the loop
+                    break
+
+            if remaining_amount > 0:
+                print(f"${remaining_amount} of income remains unallocated.")
 
     # Handle invalid menu choice
     else:
-        print("Invalid choice. Please enter 1, 2, 3, or 4.")
+        print("Invalid choice. Please enter 1, 2, or 3.")
