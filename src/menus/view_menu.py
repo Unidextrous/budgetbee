@@ -163,71 +163,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
 
     elif choice == "4":
         # Option to view budgets
-
-        # Get total budget based on total of account balances
-        accounts = account_manager.get_accounts()
-        if not accounts:
-            # Notify if no accounts are found
-            print("No accounts found. Please set the balance of at least one account first.")
-            return
-        
-        total_balance = 0.0
-        # Loop through each account to display its balance
-        for account in accounts:
-            balance = account_manager.get_balance(account)
-            total_balance += balance
-        
-                # Display the total balance
-        if total_balance >= 0:
-            print(f"TOTAL BALANCE: ${total_balance}")
-        else:
-            print("TOTAL BALANCE: $0.0")
-
-        categories = category_manager.get_categories_by_type("EXPENSE")  # Assume budgets only apply to EXPENSE categories
-        if not categories:
-            print("No categories found. Please add at least one category first.")
-            return
-
-        # Get start and end dates for the budget search
-        try:
-            start_date_str = input("Enter the start date (YYYY-MM-DD): ")
-            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-            end_date_str = input("Enter the end date (YYYY-MM-DD): ")
-            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
-        except ValueError:
-            print("Invalid date format. Please enter dates in the format YYYY-MM-DD.")
-            return
-
-        # Fetch budgets for the specified date range
-        budgets = budget_manager.get_budgets(start_date, end_date)
-        
-        # Display the budgets
-        if budgets:
-            formatted_start_date = start_date.strftime('%Y-%m-%d')
-            formatted_end_date = end_date.strftime('%Y-%m-%d')
-            print(f"Budgets from {formatted_start_date} to {formatted_end_date}:")
-
-            total_budget_limit = 0.0
-            total_spent = 0.0
-            
-            for budget in budgets:
-                budget_id, category, budget_limit, start_date = budget
-                total_budget_limit += budget_limit
-
-                # Calculate total spending for the budgeted category within the date range
-                spending = transaction_manager.get_total_spending_by_category(category, start_date, end_date)
-                total_spent += spending
-
-                remaining_budget = budget_limit - spending
-
-                # Print budget details
-                print(f"ID: {budget_id}, Category: {category}, Budget Limit: ${budget_limit}, Spent: ${spending}, Remaining: ${remaining_budget}, Start Date: {formatted_start_date}")
-            
-            # Display the total budget and remaining amount
-            remaining_total_budget = total_budget_limit - total_spent
-            print(f"TOTAL Budget: ${total_budget_limit}, Total Spent: ${total_spent}, Remaining Budget: ${remaining_total_budget}")
-        else:
-            print("No budgets found for the specified date range.")
+        pass
 
     else:
         print("Invalid choice. Please enter 1, 2, 3, or 4.")

@@ -8,7 +8,8 @@ class CategoryManager:
         self.db.execute("""
             INSERT INTO categories (category, type) VALUES (?, ?)
         """, (category, category_type))
-        print(f"Category '{category}' added as {category_type}.")
+        if category != "UNALLOCATED":
+            print(f"Category '{category}' added as {category_type}.")
     
     # Method to retrieve categories, optionally filtered by type
     def get_categories_by_type(self, category_type=None):

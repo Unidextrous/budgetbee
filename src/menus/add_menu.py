@@ -39,6 +39,11 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         # Get the category from the user and convert it to uppercase
         category = input("Enter the category name: ").upper()
 
+        # Ensure category name is not "UNALLOCATED"
+        if category == "UNALLOCATED":
+            print("Invalid category name.")
+            return
+
         # Get the category type from the user and convert it to uppercase
         category_type = input("Enter category type (INCOME/EXPENSE): ").strip().upper()
 
@@ -112,7 +117,15 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         except Exception as e:
             print(f"An error occurred in Add Transaction menu: {e}")
             return None
+
+        # Check if "UNALLOCATED" category exists, if not, create it
+        unallocated_category = "UNALLOCATED"
+        existing_categories = category_manager.get_categories_by_type()
         
+        if unallocated_category not in existing_categories:
+            # If "UNALLOCATED" category doesn't exist, create it
+            category_manager.add_category(unallocated_category, "EXPENSE")
+
         if category_type == "INCOME":
             remaining_amount = amount
             print(f"Total income: ${amount}")
@@ -154,6 +167,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
 
             if remaining_amount > 0:
                 print(f"${remaining_amount} of income remains unallocated.")
+                budget_manager.set_budget(unallocated_category, remaining_amount, date)
 
     # Handle invalid menu choice
     else:
