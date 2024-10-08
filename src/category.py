@@ -19,8 +19,12 @@ class CategoryManager:
             query += " WHERE type = ?"  # Add filter for category type
             params = (category_type,)
         
-        with self.db.conn:  # Use a context manager for transaction management
-            return [row[0] for row in self.db.fetchall(query, params)]  # Return list of categories
+        categories = self.db.fetchall(query, params)
+        
+        if not categories:
+            print(f"No categories found for type '{category_type}'." if category_type else "No categories found.")
+        
+        return [row[0] for row in categories]
 
     # Method to get the category associated with a specific transaction ID
     def get_category_by_transaction_id(self, transaction_id):

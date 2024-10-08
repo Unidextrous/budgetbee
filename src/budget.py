@@ -32,14 +32,25 @@ class BudgetManager:
         # Retrieves budgets for a specific category within the specified date range.
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
-
+        
         return self.db.fetchall(
             """SELECT id, category, budget_limit, date, transaction_id
                FROM budgets
                WHERE category = ? 
-               AND DATE(date) >= DATE(?) 
-               AND DATE(date) <= DATE(?)""",
+               AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)""",
             (category, start_date_str, end_date_str)
+        )
+    
+    def get_all_budgets(self, start_date, end_date):
+        # Retrieves all budgets within the specified date range.
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+
+        return self.db.fetchall(
+            """SELECT id, category, budget_limit, date, transaction_id
+               FROM budgets
+               WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)""",
+            (start_date_str, end_date_str)
         )
         
     def get_budgets_by_transaction_id(self, transaction_id):

@@ -20,28 +20,7 @@ class TransactionManager:
         # Get and return the last inserted transaction ID
         transaction_id = self.db.execute("SELECT last_insert_rowid()").fetchone()[0]
         return transaction_id
-    
-    def get_transactions_by_category(self, category, start_date, end_date):
-        # Fetch transactions for a specific category between a start and end date
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
 
-        return self.db.fetchall("""
-            SELECT * FROM transactions
-            WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
-        """, (category, start_date_str, end_date_str))
-
-    def get_transactions_by_category_type(self, category_type, start_date, end_date):
-        # Fetch transactions based on category type (INCOME/EXPENSE) between a date range
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
-
-        return self.db.fetchall("""
-            SELECT t.* FROM transactions t
-            JOIN categories c on t.category = c.category
-            WHERE c.type = ? AND DATE (date) >= DATE(?) AND DATE(date) <= DATE(?)
-        """, (category_type, start_date_str, end_date_str))
-    
     def get_transactions_by_account(self, account, start_date, end_date):
         # Fetch transactions for a specific account within a date range. If account is "*", fetch all transactions.
         start_date_str = start_date.strftime("%Y-%m-%d")
@@ -57,6 +36,26 @@ class TransactionManager:
             SELECT * FROM transactions
             WHERE account = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
         """, (account, start_date_str, end_date_str))
+    
+    def get_transactions_by_category(self, category, start_date, end_date):
+        # Fetch transactions for a specific category between a start and end date
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+
+        return self.db.fetchall("""
+            SELECT * FROM transactions
+            WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
+        """, (category, start_date_str, end_date_str))
+
+    def get_all_transactions(self, start_date, end_date):
+        # Fetch all transactions between a start and end date
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+
+        return self.db.fetchall("""
+            SELECT * FROM transactions
+            WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
+        """, (start_date_str, end_date_str))
 
     def get_transaction_by_id(self, transaction_id):
          # Retrieve a specific transaction by its ID
