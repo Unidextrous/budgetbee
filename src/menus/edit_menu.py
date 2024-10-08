@@ -80,6 +80,8 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         # Delete account option
         elif account_choice == "3":
             confirm_deletion(account_manager, account_name, "Account")
+        else:
+            print("Invalid choice. Please enter 1, 2, or 3.")
 
     # Edit Category menu
     elif choice == "2":
@@ -91,10 +93,6 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         print("1. Rename category")
         print("2. Delete category")
         category_choice = input("Enter your choice (1/2): ")
-
-        if category_choice not in ["1", "2"]:
-            print("Invalid choice. Please enter 1, 2, or 3.")
-            return
 
         # Rename category option
         if category_choice == "1":
@@ -161,10 +159,6 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         print("5. Update transaction date")
         print("6. Delete transaction")
         transaction_choice = input("Enter your choice (1/2/3/4/5/6): ")
-
-        if transaction_choice not in ["1", "2", "3", "4", "5", "6"]:
-            print("Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.")
-            return
 
         # Update transaction account option
         if transaction_choice == "1":

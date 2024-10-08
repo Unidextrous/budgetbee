@@ -126,27 +126,28 @@ class TransactionManager:
         remaining_balance = starting_balance
 
         # Iterate through transactions and update remaining balances based on transaction type
-        for transaction in transactions:
-            transaction_id, amount, category, date = transaction
+        if transactions:
+            for transaction in transactions:
+                transaction_id, amount, category, date = transaction
 
-            category_type = self.category_manager.get_category_type(category)
+                category_type = self.category_manager.get_category_type(category)
 
-            if category_type == "INCOME":
-                remaining_balance += amount
-            elif category_type == "EXPENSE":
-                remaining_balance -= amount
+                if category_type == "INCOME":
+                    remaining_balance += amount
+                elif category_type == "EXPENSE":
+                    remaining_balance -= amount
 
-            # Update the remaining balance for the current transaction
-            self.db.execute("""
-                UPDATE transactions
-                SET remaining_balance = ? WHERE id = ?
-            """, (remaining_balance, transaction_id))
+                # Update the remaining balance for the current transaction
+                self.db.execute("""
+                    UPDATE transactions
+                    SET remaining_balance = ? WHERE id = ?
+                """, (remaining_balance, transaction_id))
 
-            # Update the account's balance
-            self.db.execute("""
-                UPDATE accounts
-                SET balance = ? WHERE account = ?
-            """, (remaining_balance, account))
+        # Update the account's balance
+        self.db.execute("""
+            UPDATE accounts
+            SET balance = ? WHERE account = ?
+        """, (remaining_balance, account))
 
     def update_category(self, transaction_id, new_category):
         # Update the category of a specific transaction
