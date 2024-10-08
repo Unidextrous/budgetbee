@@ -3,7 +3,7 @@ from menus.menu_helpers import *
 
 def menu(account_manager, category_manager, transaction_manager, budget_manager):
     # Display the menu options for adding or setting items
-    print("Add/Set Menu:")
+    print("Add Menu:")
     print("1. Add account")
     print("2. Add category")
     print("3. Add transaction")
@@ -68,6 +68,8 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             # Fetch available categories for INCOME and EXPENSE
             income_categories = category_manager.get_categories_by_type("INCOME")
             expense_categories = category_manager.get_categories_by_type("EXPENSE")
+            if "UNALLOCATED" in expense_categories:
+                expense_categories.remove("UNALLOCATED")
             categories = income_categories + expense_categories
             if not categories:
                 print("No categories found. Please add at least one category first.")
@@ -107,7 +109,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
 
             # Add transaction and update all remaining balances
             transaction_manager.update_all_remaining_balances(account)
-            transaction_manager.add_transaction(account, amount, category, details, date)
+            transaction_id = transaction_manager.add_transaction(account, amount, category, details, date)
 
             # Display appropriate message based on category type
             if category in income_categories:
@@ -153,7 +155,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                                 print("Invalid input. Please enter a valid number.")
 
                         # Set the budget for the selected category
-                        budget_manager.set_budget(budget_category, budget_limit, date)
+                        budget_manager.set_budget(budget_category, budget_limit, date, transaction_id)
                         print(f"Budget of ${budget_limit} allocated to category {budget_category}.")
 
                         # Update remaining amount
@@ -167,7 +169,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
 
             if remaining_amount > 0:
                 print(f"${remaining_amount} of income remains unallocated.")
-                budget_manager.set_budget(unallocated_category, remaining_amount, date)
+                budget_manager.set_budget(unallocated_category, remaining_amount, date, transaction_id)
 
     # Handle invalid menu choice
     else:

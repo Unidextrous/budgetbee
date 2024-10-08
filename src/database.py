@@ -77,6 +77,8 @@ class Database:
                     category TEXT,
                     budget_limit REAL,
                     date TEXT,
-                    FOREIGN KEY (category) REFERENCES categories (category)
+                    transaction_id INTEGER,
+                    FOREIGN KEY (category) REFERENCES categories (category),
+                    FOREIGN KEY (transaction_id) REFERENCES transactions (id)
                 )
             """)

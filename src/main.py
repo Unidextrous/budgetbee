@@ -42,7 +42,7 @@ def main():
     # Main loop to display the main menu and handle user choices
     while True:
         print("\nMain Menu:")
-        print("1. Add/Set")
+        print("1. Add")
         print("2. View")
         print("3. Edit")
         print("4. Visualize")

@@ -16,6 +16,10 @@ class TransactionManager:
         
         # Recalculate and update all remaining balances for the account
         self.update_all_remaining_balances(account)
+
+        # Get and return the last inserted transaction ID
+        transaction_id = self.db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        return transaction_id
     
     def get_transactions_by_category(self, category, start_date, end_date):
         # Fetch transactions for a specific category between a start and end date
