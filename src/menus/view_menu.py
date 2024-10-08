@@ -79,9 +79,9 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         # User can search transactions by category or by account
         print("1. Search by account")
         print("2. Search by category")
-        choice_sub = input("Enter your choice (1/2): ")
+        transaction_choice = input("Enter your choice (1/2): ")
 
-        if choice_sub not in ["1", "2"]:
+        if transaction_choice not in ["1", "2"]:
             # Validate the choice
             print("Invalid choice. Please enter 1 or 2.")
             return
@@ -93,7 +93,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             end_date_str = input("Enter the end date (YYYY-MM-DD): ")
             end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
 
-            if choice_sub == "1":
+            if transaction_choice == "1":
                 # View transactions by account
                 accounts = account_manager.get_accounts()
                 if not accounts:
@@ -108,7 +108,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 
                 transactions = transaction_manager.get_transactions_by_account(account, start_date, end_date)
             
-            elif choice_sub == "2":
+            elif transaction_choice == "2":
                 # View transactions by category (either INCOME or EXPENSE)
                 view_categories(category_manager, False)
 
@@ -166,9 +166,9 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         try:
             print("1. View budgets by category")
             print("2. View budgets by transaction ID")
-            choice_sub = input("Enter your choice (1/2): ")
+            budget_choice = input("Enter your choice (1/2): ")
 
-            if choice_sub == "1":
+            if budget_choice == "1":
                 # Get the date range from the user
                 start_date_str = input("Enter the start date (YYYY-MM-DD): ")
                 start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
@@ -197,7 +197,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
 
                         print(f"Budget ID: {budget[0]}, Category: {budget[1]}, Limit: ${budget[2]}, Date: {formatted_date}")
             
-            elif choice_sub == "2":
+            elif budget_choice == "2":
                 txn_id = input("Enter the transaction ID: ")
                 budgets = budget_manager.get_budgets_by_transaction_id(txn_id)
                 if budgets:

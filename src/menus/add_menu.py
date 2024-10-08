@@ -128,7 +128,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             # If "UNALLOCATED" category doesn't exist, create it
             category_manager.add_category(unallocated_category, "EXPENSE")
 
-        if category_type == "INCOME":
+        if category_type == "INCOME" and len(expense_categories) > 0:
             remaining_amount = amount
             print(f"Total income: ${amount}")
 
@@ -170,6 +170,9 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             if remaining_amount > 0:
                 print(f"${remaining_amount} of income remains unallocated.")
                 budget_manager.set_budget(unallocated_category, remaining_amount, date, transaction_id)
+        elif len(expense_categories) == 0:
+            print(f"${amount} of income remains unallocated.")
+            budget_manager.set_budget(unallocated_category, amount, date, transaction_id)
 
     # Handle invalid menu choice
     else:
