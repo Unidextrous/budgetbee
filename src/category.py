@@ -28,7 +28,8 @@ class CategoryManager:
 
     # Method to get the type of a specific category
     def get_category_type(self, category):
-        return self.db.fetchone("SELECT type FROM categories WHERE category = ?", (category,))[0]
+        if category in self.get_categories_by_type():
+            return self.db.fetchone("SELECT type FROM categories WHERE category = ?", (category,))[0]
         
     # Method to rename a category and update associated records
     def rename_category(self, old_name, new_name):

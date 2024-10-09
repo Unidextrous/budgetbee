@@ -66,31 +66,32 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 return
 
             # Fetch available categories for INCOME and EXPENSE
-            income_categories = category_manager.get_categories_by_type("INCOME")
-            expense_categories = category_manager.get_categories_by_type("EXPENSE")
-            if "UNALLOCATED" in expense_categories:
-                expense_categories.remove("UNALLOCATED")
-            categories = income_categories + expense_categories
+            categories = category_manager.get_categories_by_type()
+            if "UNALLOCATED" in categories:
+                categories.remove("UNALLOCATED")
             if not categories:
                 print("No categories found. Please add at least one category first.")
                 return
             
             # Select an account and category for the transaction
+            view_accounts(account_manager)
             account = select_account(account_manager)
             if not account:
                 return
-            category = select_category(category_manager)
+            
+            view_categories(category_manager, False)
+            category = select_category(category_manager, False)
             if not category:
                 return
-
+            
             # Get the transaction amount based on category type (INCOME or EXPENSE)
-            if category in income_categories:
+            if category_manager.get_category_type(category) == "INCOME":
                 category_type = "INCOME"
                 amount = float(input("Enter the transaction amount: $"))
-            elif category in expense_categories:
+            elif category_manager.get_category_type(category) == "EXPENSE":
                 category_type = "EXPENSE"
                 amount = float(input("Enter the transaction amount: -$"))
-            
+
             # Ensure the amount is positive
             if amount < 0:
                 print("Invalid input. Please enter a positive number.")
@@ -102,19 +103,19 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
 
             # Update remaining balance based on category type and amount
             balance = account_manager.get_balance(account)            
-            if category in income_categories:
+            if category_type == "INCOME":
                 new_balance = balance + amount
-            elif category in expense_categories:
+            elif category_type == "EXPENSE":
                 new_balance = balance - amount
 
             # Add transaction and update all remaining balances
-            transaction_manager.update_all_remaining_balances(account)
             transaction_id = transaction_manager.add_transaction(account, amount, category, details, date)
+            transaction_manager.update_all_remaining_balances(account)
 
             # Display appropriate message based on category type
-            if category in income_categories:
+            if category_type == "INCOME":
                 print(f"Transaction of ${amount} added. New {account} balance: ${new_balance}")
-            elif category in expense_categories:
+            elif category_type == "EXPENSE":
                 print(f"Transaction of -${amount} added. New {account} balance: ${new_balance}")
         except Exception as e:
             print(f"An error occurred in Add Transaction menu: {e}")
@@ -128,7 +129,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             # If "UNALLOCATED" category doesn't exist, create it
             category_manager.add_category(unallocated_category, "EXPENSE")
 
-        if category_type == "INCOME" and len(expense_categories) > 0:
+        if category_type == "INCOME" and len(category_manager.get_categories_by_type("EXPENSE")) > 1:
             remaining_amount = amount
             print(f"Total income: ${amount}")
 
@@ -136,11 +137,11 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 set_budget = input(f"You have ${remaining_amount} left to allocate. Would you like to allocate it to a budget category? (Y/N): ").strip().upper()
                 if set_budget == "Y":
                     # Fetch available expense categories for budgeting
-                    print(f"Available categories: {', '.join(expense_categories)}")
+                    view_categories(category_manager, False, "EXPENSE")
                     budget_category = input("Enter the category to allocate budget: ").upper()
 
                     # Validate the category input
-                    if budget_category in expense_categories:
+                    if category_manager.get_category_type(budget_category) == "EXPENSE":
                         # Ask for the amount to allocate to the chosen category
                         budget_limit = -1  # Initialize with an invalid value
                         while budget_limit <= 0:
@@ -168,11 +169,11 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                     break
 
             if remaining_amount > 0:
-                print(f"${remaining_amount} of income remains unallocated.")
                 budget_manager.set_budget(unallocated_category, remaining_amount, date, transaction_id)
-        elif len(expense_categories) == 0:
-            print(f"${amount} of income remains unallocated.")
+        elif len(category_manager.get_categories_by_type("EXPENSE")) == 1:
             budget_manager.set_budget(unallocated_category, amount, date, transaction_id)
+        elif category_type == "EXPENSE":
+            transaction_manager.deduct_from_budget(category, amount)
 
     # Handle invalid menu choice
     else:

@@ -76,6 +76,7 @@ class Database:
                     id INTEGER PRIMARY KEY,
                     category TEXT,
                     budget_limit REAL,
+                    remaining_budget REAL,
                     date TEXT,
                     transaction_id INTEGER,
                     FOREIGN KEY (category) REFERENCES categories (category),

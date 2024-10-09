@@ -1,27 +1,5 @@
 from datetime import datetime
-
-def view_categories(category_manager, include_unallocated, category_type=None):
-    # Function to view categories
-    income_categories = category_manager.get_categories_by_type("INCOME")
-    expense_categories = category_manager.get_categories_by_type("EXPENSE")
-
-    if "UNALLOCATED" in expense_categories and include_unallocated == False:
-        expense_categories.remove("UNALLOCATED")
-
-    if income_categories or expense_categories:
-        # Display income categories, if any exist
-        if income_categories and category_type != "EXPENSE":
-            print("INCOME categories:")
-            for category in income_categories:
-                print(f"- {category}")
-        # Display expense categories, if any exist
-        if expense_categories and category_type != "INCOME":
-            print("EXPENSE categories")
-            for category in expense_categories:
-                print(f"- {category}")
-    else:
-        # Notify if no categories are found
-        print("No categories found.")
+from menus.menu_helpers import *
 
 def menu(account_manager, category_manager, transaction_manager, budget_manager):
     # Display the menu options for viewing items
@@ -34,28 +12,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
 
     if choice == "1":
         # Option to view all account balances
-        accounts = account_manager.get_accounts()
-        if not accounts:
-            # Notify if no accounts are found
-            print("No accounts found. Please set the balance of at least one account first.")
-            return
-        
-        total_balance = 0.0
-        # Loop through each account to display its balance
-        for account in accounts:
-            balance = account_manager.get_balance(account)
-            total_balance += balance
-            # Display balance with positive or negative formatting
-            if balance >= 0:
-                print(f"- {account}: ${balance}")
-            else:
-                print(f"- {account}: -${balance * -1}")
-
-        # Display the total balance
-        if total_balance >= 0:
-            print(f"TOTAL BALANCE: ${total_balance}")
-        else:
-            print(f"TOTAL BALANCE: -${total_balance * -1}")
+        view_accounts(account_manager)
         
             
     elif choice == "2":
@@ -120,7 +77,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 category = input("Enter the transaction category (* for ALL): ").upper()
                 if category == "*":
                     # View all transactions for the category type
-                    transactions = transaction_manager.get_all_transactions(start_date, end_date)
+                    transactions = transaction_manager.get_transactions_by_date(start_date, end_date)
                 elif category in categories:
                     # View transactions for the specific category
                     transactions = transaction_manager.get_transactions_by_category(category, start_date, end_date)
@@ -176,7 +133,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
 
                 # Check for transactions in the date range
-                transactions = transaction_manager.get_all_transactions(start_date, end_date)
+                transactions = transaction_manager.get_transactions_by_date(start_date, end_date)
                 if not transactions:
                     # Notify if no transactions exist
                     print("No transactions found in date range.")
@@ -186,23 +143,23 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 category = input("Enter the category (* for ALL): ").upper()
                 
                 if category == "*":
-                    budgets = budget_manager.get_all_budgets(start_date, end_date)
+                    budgets = budget_manager.get_budgets_by_date(start_date, end_date)
                 else:
                     budgets = budget_manager.get_budgets_by_category(category, start_date, end_date)
 
                 if budgets:
                     for budget in budgets:
-                        date_object = datetime.fromisoformat(budget[3])  # Assuming `date` is a string in ISO format like '2024-09-22T00:00:00'
+                        date_object = datetime.fromisoformat(budget[4])  # Assuming `date` is a string in ISO format like '2024-09-22T00:00:00'
                         formatted_date = date_object.strftime('%Y-%m-%d')  # Format to 'YYYY-MM-DD'  
 
-                        print(f"Budget ID: {budget[0]}, Category: {budget[1]}, Limit: ${budget[2]}, Date: {formatted_date}")
+                        print(f"Budget ID: {budget[0]}, Category: {budget[1]}, Limit: ${budget[2]}, Remaining: ${budget[3]}, Date: {formatted_date}")
             
             elif budget_choice == "2":
                 txn_id = input("Enter the transaction ID: ")
                 budgets = budget_manager.get_budgets_by_transaction_id(txn_id)
                 if budgets:
                     for budget in budgets:
-                        print(f"Budget ID: {budget[0]}, Category: {budget[1]}, Limit: ${budget[2]}, Date: {budget[3]}")
+                        print(f"Budget ID: {budget[0]}, Category: {budget[1]}, Limit: ${budget[2]}, Remaining: ${budget[3]} Date: {budget[4]}")
                 else:
                     print("No budgets found for this transaction ID.")
         except Exception as e:

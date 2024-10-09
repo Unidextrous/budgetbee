@@ -7,8 +7,8 @@ class BudgetManager:
     def set_budget(self, category, budget_limit, date, transaction_id):
         # Check if a budget for the same category and date already exists
         existing_budget = self.db.fetchone(
-            "SELECT id, budget_limit FROM budgets WHERE category = ? AND date = ?",
-            (category, date.isoformat())
+            "SELECT id, budget_limit FROM budgets WHERE category = ? AND transaction_id = ?",
+            (category, transaction_id)
         )
         
         if existing_budget:
@@ -16,39 +16,40 @@ class BudgetManager:
             budget_id, existing_limit = existing_budget
             new_limit = existing_limit + budget_limit
             self.db.execute(
-                "UPDATE budgets SET budget_limit = ?, transaction_id = ?, WHERE id = ?",
-                (new_limit, transaction_id, budget_id)
+                "UPDATE budgets SET budget_limit = ?, remaining_budget = ?, transaction_id = ?, WHERE id = ?",
+                (new_limit, new_limit, transaction_id, budget_id)
             )
             print(f"Updated budget for category {category}. New budget limit: ${new_limit}.")
         else:
             # If no existing budget for this category/date, insert a new one
             self.db.execute(
-                "INSERT INTO budgets (category, budget_limit, date, transaction_id) VALUES (?, ?, ?, ?)",
-                (category, budget_limit, date.isoformat(), transaction_id)
+                "INSERT INTO budgets (category, budget_limit, remaining_budget, date, transaction_id) VALUES (?, ?, ?, ?, ?)",
+                (category, budget_limit, budget_limit, date.isoformat(), transaction_id)
             )
             print(f"Set new budget for category {category} with limit: ${budget_limit}.")
 
-    def get_budgets_by_category(self, category, start_date, end_date):
+    def get_budgets_by_category(self, category, start_date=None, end_date=None):
         # Retrieves budgets for a specific category within the specified date range.
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
-        
-        return self.db.fetchall(
-            """SELECT id, category, budget_limit, date, transaction_id
-               FROM budgets
-               WHERE category = ? 
-               AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)""",
-            (category, start_date_str, end_date_str)
-        )
+        query = "SELECT * FROM budgets WHERE category = ?"
+        params = [category]
+
+        if start_date and end_date:
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date.strftime("%Y-%m-%d")
+
+            query += " AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)"
+            params.extend([start_date_str, end_date_str])
+
+        query += " ORDER BY date, id"
+        return self.db.fetchall(query, params)
     
-    def get_all_budgets(self, start_date, end_date):
+    def get_budgets_by_date(self, start_date, end_date):
         # Retrieves all budgets within the specified date range.
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
 
         return self.db.fetchall(
-            """SELECT id, category, budget_limit, date, transaction_id
-               FROM budgets
+            """SELECT * FROM budgets
                WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)""",
             (start_date_str, end_date_str)
         )
@@ -56,9 +57,7 @@ class BudgetManager:
     def get_budgets_by_transaction_id(self, transaction_id):
         # Retrieves all budgets for the specified transaction ID.
         return self.db.fetchall(
-            """SELECT id, category, budget_limit, date, transaction_id
-            FROM budgets
-            WHERE transaction_id = ?""",
+            """SELECT * FROM budgets WHERE transaction_id = ?""",
             (transaction_id,)
         )
     

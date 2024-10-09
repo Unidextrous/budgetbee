@@ -36,7 +36,7 @@ def main():
     account_manager = AccountManager(db)
     category_manager = CategoryManager(db)
     budget_manager = BudgetManager(db)
-    transaction_manager = TransactionManager(db, account_manager, category_manager)
+    transaction_manager = TransactionManager(db, account_manager, category_manager, budget_manager)
     visualizer = Visualizer(db, budget_manager, transaction_manager)
     
     # Main loop to display the main menu and handle user choices

@@ -1,11 +1,12 @@
 from datetime import datetime
 
 class TransactionManager:
-    def __init__(self, db, account_manager, category_manager):
+    def __init__(self, db, account_manager, category_manager, budget_manager):
         # Initialize the TransactionManager with database and managers for accounts and categories
         self.db = db
         self.account_manager = account_manager
         self.category_manager = category_manager
+        self.budget_manager = budget_manager
 
     def add_transaction(self, account, amount, category, details, date):
         # Add a new transaction to the database, initially with a remaining balance of 0
@@ -47,7 +48,7 @@ class TransactionManager:
             WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
         """, (category, start_date_str, end_date_str))
 
-    def get_all_transactions(self, start_date, end_date):
+    def get_transactions_by_date(self, start_date, end_date):
         # Fetch all transactions between a start and end date
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
@@ -125,8 +126,9 @@ class TransactionManager:
 
         remaining_balance = starting_balance
 
-        # Iterate through transactions and update remaining balances based on transaction type
+        # Check to make sure there is at least one transaction in the transactions table
         if transactions:
+            # Iterate through transactions and update remaining balances based on transaction type
             for transaction in transactions:
                 transaction_id, amount, category, date = transaction
 
@@ -148,6 +150,44 @@ class TransactionManager:
             UPDATE accounts
             SET balance = ? WHERE account = ?
         """, (remaining_balance, account))
+
+    # Method to deduct expense from budgets
+    def deduct_from_budget(self, category, expense_amount):
+        budgets = self.budget_manager.get_budgets_by_category(category)  # Fetch budgets for the category, oldest first
+        remaining_expense = expense_amount
+
+        if not budgets:
+            print(f"No budgets available for category {category}.")
+            return
+    
+        for budget in budgets:
+            budget_id, category, budget_limit, remaining_budget, date, transaction_id = budget
+
+            # Deduct from the oldest budget first
+            if remaining_expense <= remaining_budget:
+                new_remaining_budget = remaining_budget - remaining_expense
+                remaining_expense = remaining_expense - budget_limit
+                print(f"Budget ID {budget_id} remaining limit changed to ${new_remaining_budget}")
+                self.update_remaining_budget(budget_id, new_remaining_budget)
+                break  # All of the expense has been covered
+            else:
+                # Deduct all of the current budget, move to the next one
+                remaining_expense -= remaining_budget
+                print(f"Budget ID {budget_id} remaining limit changed to $0.00")
+                self.update_remaining_budget(budget_id, 0)
+
+
+        if remaining_expense > 0:
+            print(f"Warning: Not enough budget to cover the full expense. Remaining uncovered: ${remaining_expense}")
+
+    # Example function to update remaining budget in the database
+    def update_remaining_budget(self, budget_id, new_remaining_budget):
+        query = """
+            UPDATE budgets 
+            SET remaining_budget = ? 
+            WHERE id = ?
+        """
+        self.db.execute(query, (new_remaining_budget, budget_id))
 
     def update_category(self, transaction_id, new_category):
         # Update the category of a specific transaction
