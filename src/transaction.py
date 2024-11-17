@@ -179,6 +179,22 @@ class TransactionManager:
         if remaining_expense > 0:
             print(f"Warning: Not enough budget to cover the full expense. Remaining uncovered: ${remaining_expense}")
 
+    def refund_budget(self, category, refund_amount):
+        budgets = self.budget_manager.get_budgets_by_category(category, ascending=False)
+        remaining_refund = refund_amount
+
+        for budget in budgets:
+            budget_id, category, budget_limit, remaining_budget, date, transaction_id = budget
+
+            if remaining_refund >= budget_limit - remaining_budget:
+                remaining_refund = remaining_refund - (budget_limit - remaining_budget)
+                remaining_budget = budget_limit
+                print(f"Budget ID {budget_id} remaining limit updated to ${remaining_budget}")
+            else:
+                remaining_budget += remaining_refund
+                remaining_refund = 0
+                print(f"Budget ID {budget_id} remaining limit updated to ${remaining_budget}")
+
     # Method to check if given amount exceeds remaining budget up to the transaction date
     def is_within_budget_limit(self, category, amount, transaction_date):
         # Fetch budgets for the category, sorted by date in ascending order

@@ -187,7 +187,7 @@ def update_amount(category_manager, transaction_manager, budget_manager, categor
                 transaction_manager.deduct_from_budget(category, (new_amount - amount))
         elif new_amount < amount:
             # Refund difference (amount - new_amount) to budget
-            pass
+            transaction_manager.refund_budget(category, amount - new_amount)
     
     transaction_manager.update_transaction_amount(transaction_id, category, new_amount)
 
