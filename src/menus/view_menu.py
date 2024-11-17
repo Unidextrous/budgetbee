@@ -145,7 +145,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 if category == "*":
                     budgets = budget_manager.get_budgets_by_date(start_date, end_date)
                 else:
-                    budgets = budget_manager.get_budgets_by_category(category, start_date, end_date)
+                    budgets = budget_manager.get_budgets_by_category(category, start_date=start_date, end_date=end_date)
 
                 if budgets:
                     for budget in budgets:

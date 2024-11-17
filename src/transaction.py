@@ -167,27 +167,38 @@ class TransactionManager:
             if remaining_expense <= remaining_budget:
                 new_remaining_budget = remaining_budget - remaining_expense
                 remaining_expense = remaining_expense - budget_limit
-                print(f"Budget ID {budget_id} remaining limit changed to ${new_remaining_budget}")
-                self.update_remaining_budget(budget_id, new_remaining_budget)
+                print(f"Budget ID {budget_id} remaining limit updated to ${new_remaining_budget}")
+                self.budget_manager.update_remaining_budget(budget_id, new_remaining_budget)
                 break  # All of the expense has been covered
             else:
                 # Deduct all of the current budget, move to the next one
                 remaining_expense -= remaining_budget
-                print(f"Budget ID {budget_id} remaining limit changed to $0.00")
-                self.update_remaining_budget(budget_id, 0)
-
+                print(f"Budget ID {budget_id} remaining limit updated to $0.00")
+                self.budget_manager.update_remaining_budget(budget_id, 0)
 
         if remaining_expense > 0:
             print(f"Warning: Not enough budget to cover the full expense. Remaining uncovered: ${remaining_expense}")
 
-    # Example function to update remaining budget in the database
-    def update_remaining_budget(self, budget_id, new_remaining_budget):
-        query = """
-            UPDATE budgets 
-            SET remaining_budget = ? 
-            WHERE id = ?
-        """
-        self.db.execute(query, (new_remaining_budget, budget_id))
+    # Method to check if given amount exceeds remaining budget up to the transaction date
+    def is_within_budget_limit(self, category, amount, transaction_date):
+        # Fetch budgets for the category, sorted by date in ascending order
+        budgets = self.budget_manager.get_budgets_by_category(category)  # Fetch budgets for the category, oldest first
+
+        transaction_date = transaction_date.isoformat()
+        total_remaining = 0
+
+        # Sum only budgets with dates up to the transaction date
+        for budget in budgets:
+            _, _, _, remaining_budget, budget_date, _ = budget
+            if budget_date <= transaction_date:
+                total_remaining += remaining_budget
+
+        if total_remaining >= amount:
+            return True
+        else:
+            print(f"Insufficient budget for category {category}")
+            print(f"Remaining: ${total_remaining}, Required: ${amount}")
+            return False
 
     def update_category(self, transaction_id, new_category):
         # Update the category of a specific transaction

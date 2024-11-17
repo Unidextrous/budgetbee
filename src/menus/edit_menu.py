@@ -1,44 +1,6 @@
 from datetime import datetime
 from menus.menu_helpers import *
 
-# Updates the balance for the specified account in the account manager
-def update_balance(account_manager, account_name):
-    try:
-        # Retrieve current balance
-        current_balance = account_manager.get_balance(account_name)
-
-        # Display the current balance (formatted for positive/negative values)
-        if current_balance >= 0:
-            print(f"Current balance: ${current_balance}")
-        else:
-            print(f"Current balance: -${current_balance * -1}")
-        
-        # Prompt the user for a new balance
-        new_balance = float(input("Enter the new balance: $"))
-
-        # Update the balance in the account manager
-        account_manager.reset_balance(account_name, new_balance)
-
-        # Display the updated balance
-        if new_balance >= 0:
-            print(f"{account_name} balance set to ${new_balance}")
-        else:
-            print(f"{account_name} balance set to -${new_balance * -1}")
-    except Exception as e:
-        # Catch and display any errors that occur
-        print(f"An error occurred: {e}")
-        return None
-
-# Confirms the deletion of an item (account, category, or transaction)
-def confirm_deletion(manager, item, item_type, category_type=None):
-    delete = input(f"Are you sure you wish to delete this {item_type}? Y/N: ").upper()
-    if delete == "Y":
-        if item_type == "Transaction":
-            manager.delete(item, category_type)
-        else:
-            manager.delete(item)
-        print(f"{item_type} {item} deleted.")
-
 # Displays the main edit menu and handles user input for account, category, transaction, and budget edits
 def menu(account_manager, category_manager, transaction_manager, budget_manager):
     print("Edit:")
@@ -85,7 +47,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
 
     # Edit Category menu
     elif choice == "2":
-        category = select_category(category_manager)
+        category = select_category(category_manager, False)
         if not category:
             print(f"Category {category} not found. Please check the category name and try again.")
             return
@@ -185,8 +147,8 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
                 new_amount = float(input("Enter the new transaction amount: $"))
                 if new_amount < 0:
                     raise ValueError("Amount must be positive.")
-
-                transaction_manager.update_transaction_amount(transaction_id, category, new_amount)
+                
+                update_amount(category_manager, transaction_manager, budget_manager, category, amount, new_amount, date, transaction_id)
                 print(f"Transaction amount updated to ${new_amount}.")
             except ValueError as ve:
                 print(f"Input error: {ve}")

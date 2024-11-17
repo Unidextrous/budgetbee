@@ -16,7 +16,7 @@ class BudgetManager:
             budget_id, existing_limit = existing_budget
             new_limit = existing_limit + budget_limit
             self.db.execute(
-                "UPDATE budgets SET budget_limit = ?, remaining_budget = ?, transaction_id = ?, WHERE id = ?",
+                "UPDATE budgets SET budget_limit = ?, remaining_budget = ?, transaction_id = ? WHERE id = ?",
                 (new_limit, new_limit, transaction_id, budget_id)
             )
             print(f"Updated budget for category {category}. New budget limit: ${new_limit}.")
@@ -28,7 +28,7 @@ class BudgetManager:
             )
             print(f"Set new budget for category {category} with limit: ${budget_limit}.")
 
-    def get_budgets_by_category(self, category, start_date=None, end_date=None):
+    def get_budgets_by_category(self, category, start_date=None, end_date=None, ascending=True):
         # Retrieves budgets for a specific category within the specified date range.
         query = "SELECT * FROM budgets WHERE category = ?"
         params = [category]
@@ -40,7 +40,10 @@ class BudgetManager:
             query += " AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)"
             params.extend([start_date_str, end_date_str])
 
-        query += " ORDER BY date, id"
+        if ascending:
+            query += " ORDER BY date, id"
+        else:
+            query += " ORDER BY date DESC, id DESC"
         return self.db.fetchall(query, params)
     
     def get_budgets_by_date(self, start_date, end_date):
@@ -64,6 +67,9 @@ class BudgetManager:
     def update_budget_limit(self, budget_id, new_limit):
         self.db.execute("UPDATE budgets SET budget_limit = ? WHERE id = ?", (new_limit, budget_id))
 
+    def update_remaining_budget(self, budget_id, new_limit):
+        self.db.execute("UPDATE budgets SET remaining_budget = ? WHERE id = ?", (new_limit, budget_id))
+
     def update_category(self, budget_id, new_category):
         self.db.execute("UPDATE budgets SET category = ? WHERE id = ?", (new_category, budget_id))
 
@@ -72,3 +78,6 @@ class BudgetManager:
 
     def delete(self, budget_id):
         self.db.execute("DELETE FROM budgets WHERE id = ?", (budget_id,))
+
+    def delete_by_transaction_id(self, transaction_id):
+        self.db.execute("DELETE FROM budgets WHERE transaction_id = ?", (transaction_id,))
