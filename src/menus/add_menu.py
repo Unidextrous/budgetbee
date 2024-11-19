@@ -96,7 +96,7 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             if category_type == "INCOME":
                 new_balance = balance + amount
             elif category_type == "EXPENSE":
-                if transaction_manager.is_within_budget_limit(category, amount, date):
+                if transaction_manager.is_within_budget_limit(category, amount, date.isoformat()):
                     new_balance = balance - amount
                 else: return
 

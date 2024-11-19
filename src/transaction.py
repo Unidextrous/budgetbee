@@ -84,14 +84,23 @@ class TransactionManager:
             category_type = self.category_manager.get_category_type(category)
             
             if category_type == "INCOME":
-                self.account_manager.adjust_balance(old_account_name, -amount)
-                self.account_manager.adjust_balance(new_account_name, amount)
+                if self.account_manager.get_balance(old_account_name) >= amount:
+                    self.account_manager.adjust_balance(old_account_name, -amount)
+                    self.account_manager.adjust_balance(new_account_name, amount)
+                else:
+                    print(f"{old_account_name} balance too low.")
+                    return False
             elif category_type == "EXPENSE":
-                self.account_manager.adjust_balance(old_account_name, amount)
-                self.account_manager.adjust_balance(new_account_name, -amount)
+                if self.account_manager.get_balance(new_account_name) >= amount:
+                    self.account_manager.adjust_balance(old_account_name, amount)
+                    self.account_manager.adjust_balance(new_account_name, -amount)
+                else:
+                    print(f"{new_account_name} balance too low.")
+                    return False
             
             # Update the transaction record with the new account
             self.db.execute("UPDATE transactions SET account = ? WHERE id = ?", (new_account_name, transaction_id))
+            return True
             
     def update_transaction_amount(self, transaction_id, category, new_amount):
         # Update the transaction amount and adjust the corresponding account balance
@@ -199,24 +208,34 @@ class TransactionManager:
     def is_within_budget_limit(self, category, amount, transaction_date):
         # Fetch budgets for the category, sorted by date in ascending order
         budgets = self.budget_manager.get_budgets_by_category(category)  # Fetch budgets for the category, oldest first
-
-        transaction_date = transaction_date.isoformat()
+        
+        transaction_date
         total_remaining = 0
 
         # Sum only budgets with dates up to the transaction date
         for budget in budgets:
             _, _, _, remaining_budget, budget_date, _ = budget
-            if budget_date <= transaction_date:
+            if datetime.strptime(budget_date[:10], "%Y-%m-%d") <= datetime.strptime(transaction_date[:10], "%Y-%m-%d"):
                 total_remaining += remaining_budget
 
         if total_remaining >= amount:
             return True
         else:
-            print(f"Insufficient budget for category {category}")
+            print(f"Insufficient budget for {category}")
             print(f"Remaining: ${total_remaining}, Required: ${amount}")
             return False
 
-    def update_category(self, transaction_id, new_category):
+    def update_category(self, transaction_id, amount, old_category, new_category, date):
+        category_type = self.category_manager.get_category_type(old_category)
+        if category_type == "INCOME":
+            self.refund_budget(new_category, amount)
+            self.deduct_from_budget(old_category, amount)
+        elif category_type == "EXPENSE":
+            if not self.is_within_budget_limit(new_category, amount, date):
+                return
+            self.refund_budget(old_category, amount)
+            self.deduct_from_budget(new_category, amount)
+        
         # Update the category of a specific transaction
         self.db.execute("UPDATE transactions SET category = ? WHERE id = ?", (new_category, transaction_id))
 
@@ -224,9 +243,9 @@ class TransactionManager:
         # Update the details (description) of a specific transaction
         self.db.execute("UPDATE transactions SET details = ? WHERE id = ?", (new_details, transaction_id))
 
-    def update_transaction_date(self, budget_id, new_date):
+    def update_transaction_date(self, transaction_id, new_date):
         # Update the date of a specific transaction
-        self.db.execute("UPDATE transactions SET date = ? WHERE id = ?", (new_date.isoformat(), budget_id))
+        self.db.execute("UPDATE transactions SET date = ? WHERE id = ?", (new_date.isoformat(), transaction_id))
 
     def delete(self, transaction_id, category_type):
         # Delete a transaction and adjust the corresponding account balance
@@ -242,3 +261,4 @@ class TransactionManager:
         
         # Delete the transaction from the database
         self.db.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
+        self.db.execute("DELETE FROM budgets WHERE transaction_id = ?", (transaction_id,))

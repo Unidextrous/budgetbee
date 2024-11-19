@@ -137,9 +137,11 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             elif new_account not in accounts:
                 print("Account not found. Please enter a valid account.")
                 return
-            transaction_manager.update_transaction_account(transaction_id, category, new_account)
-            print(f"{account} balance updated to ${account_manager.get_balance(account)}")
-            account = new_account
+            if transaction_manager.update_transaction_account(transaction_id, category, new_account):
+                print(f"{account} balance updated to ${account_manager.get_balance(account)}")
+                account = new_account
+            else:
+                return
 
         # Update transaction amount option
         elif transaction_choice == "2":
@@ -178,12 +180,16 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
             
             # Check if the entered category exists in the list of available categories
             if new_category in categories:
-                transaction_manager.update_category(transaction_id, new_category)
-                print(f"Category updated to {new_category}.")
+                if transaction_manager.update_category(transaction_id, amount, category, new_category, date):
+                    print(f"Category updated to {new_category}.")
+                else:
+                    return
             elif new_category == category:
                 print("Invalid category.")
+                return
             else:
                 print("Category does not exist. Please enter a valid category.")
+                return
         
         # Update transaction details option
         elif transaction_choice == "4":
@@ -195,15 +201,22 @@ def menu(account_manager, category_manager, transaction_manager, budget_manager)
         elif transaction_choice == "5":
             new_date = input_date()  # Use input_date() here
             if new_date:
-                transaction_manager.update_transaction_date(transaction_id, category, new_date)
-                print(f"Transaction date updated to {new_date}.")
+                if transaction_manager.check_before_change(transaction_id):
+                    transaction_manager.update_transaction_date(transaction_id, amount, category, new_date)
+                    print(f"Transaction date updated to {new_date}.")
+                else:
+                    return
             else:
                 return
 
         # Delete category option
         elif transaction_choice == "6":
-            confirm_deletion(transaction_manager, transaction_id, "Transaction", category)
-            transaction_manager.update_all_remaining_balances(account)
+            category_type = category_manager.get_category_type(category)
+            if transaction_manager.check_before_change(transaction_id) or category_type == "EXPENSE":
+                confirm_deletion(transaction_manager, transaction_id, "Transaction", category)
+                transaction_manager.update_all_remaining_balances(account)
+            else:
+                f"Future transactions will exceed budget for {category} if this transaction is deleted."
 
         else:
             print("Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.")
