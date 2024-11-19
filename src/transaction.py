@@ -38,25 +38,21 @@ class TransactionManager:
             WHERE account = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
         """, (account, start_date_str, end_date_str))
     
-    def get_transactions_by_category(self, category, start_date, end_date):
+    def get_transactions_by_category(self, category, start_date=None, end_date=None):
         # Fetch transactions for a specific category between a start and end date
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
+        if start_date and end_date:
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date.strftime("%Y-%m-%d")
+
+            return self.db.fetchall("""
+                SELECT * FROM transactions
+                WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
+            """, (category, start_date_str, end_date_str))
 
         return self.db.fetchall("""
             SELECT * FROM transactions
-            WHERE category = ? AND DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
-        """, (category, start_date_str, end_date_str))
-
-    def get_transactions_by_date(self, start_date, end_date):
-        # Fetch all transactions between a start and end date
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
-
-        return self.db.fetchall("""
-            SELECT * FROM transactions
-            WHERE DATE(date) >= DATE(?) AND DATE(date) <= DATE(?)
-        """, (start_date_str, end_date_str))
+            WHERE category = ?
+        """, (category,))
 
     def get_transaction_by_id(self, transaction_id):
          # Retrieve a specific transaction by its ID
@@ -243,8 +239,9 @@ class TransactionManager:
         # Update the details (description) of a specific transaction
         self.db.execute("UPDATE transactions SET details = ? WHERE id = ?", (new_details, transaction_id))
 
-    def update_transaction_date(self, transaction_id, new_date):
+    def update_transaction_date(self, transaction_id, category, new_date):
         # Update the date of a specific transaction
+        category_type = self.category_manager.get_category_type(category)
         self.db.execute("UPDATE transactions SET date = ? WHERE id = ?", (new_date.isoformat(), transaction_id))
 
     def delete(self, transaction_id, category_type):
