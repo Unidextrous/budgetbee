@@ -2,6 +2,7 @@ import sqlite3
 from datetime import datetime
 from kivy.app import App
 from kivy.uix.label import Label
+from kivy.uix.dropdown import ObjectProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.properties import StringProperty, ListProperty
 from kivy.lang import Builder
@@ -30,7 +31,6 @@ def init_db():
         c.execute("""
             CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                person TEXT NOT NULL,
                 account_id INTEGER NOT NULL,
                 amount REAL NOT NULL,
                 category TEXT NOT NULL,
@@ -94,8 +94,24 @@ class AccountsScreen(Screen):
             )
 
 class AddTransactionScreen(Screen):
-    def add_transaction(self, amount, category, date, description, person):
-        if not amount or not category or not person:
+    account_spinner = ObjectProperty(None)
+
+    def on_pre_enter(self):
+        # Refresh account list each time the screen is shown
+        self.refresh_accounts()
+
+    def refresh_accounts(self):
+        conn = sqlite3.connect("budgetbee.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM accounts")
+        accounts = [row[0] for row in cursor.fetchall()]
+        conn.close()
+
+        # Update spinner values
+        self.account_spinner.values = accounts
+
+    def add_transaction(self, account_name, amount, category, date, description):
+        if not account_name or not amount or not category:
             return  # simple validation
 
         if not date:
@@ -103,15 +119,21 @@ class AddTransactionScreen(Screen):
 
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
+            # Find the account_id by name
+            c.execute("SELECT id FROM accounts WHERE name=?", (account_name,))
+            account = c.fetchone()
+            if not account:
+                return
+            account_id = account[0]
+
             c.execute("""
-                INSERT INTO transactions (amount, category, date, description, person)
+                INSERT INTO transactions (account_id, amount, category, date, description)
                 VALUES (?, ?, ?, ?, ?)
-            """, (float(amount), category, date, description, person))
+            """, (account_id, float(amount), category, date, description))
             conn.commit()
 
         # Go back to dashboard after saving
         self.manager.current = "dashboard"
-
 
 class TransactionsScreen(Screen):
     transactions = ListProperty([])
@@ -119,7 +141,7 @@ class TransactionsScreen(Screen):
     def on_pre_enter(self):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT amount, category, date, description, person FROM transactions ORDER BY date DESC")
+            c.execute("SELECT account_id, amount, category, date, description FROM transactions ORDER BY date DESC")
             self.transactions = c.fetchall()
 
         # Update the UI

@@ -61,8 +61,13 @@
             on_release: app.root.current = "dashboard"
 
 <AddTransactionScreen>:
+    account_spinner: account_spinner
     BoxLayout:
         orientation: "vertical"
+        Spinner:
+            id: account_spinner
+            text: "Select Account"
+            values: []
         TextInput:
             id: amount
             hint_text: "Amount"
@@ -76,12 +81,9 @@
         TextInput:
             id: description
             hint_text: "Description"
-        TextInput:
-            id: person
-            hint_text: "Person"
         Button:
             text: "Save Transaction"
-            on_release: root.add_transaction(amount.text, category.text, date.text, description.text, person.text)
+            on_release: root.add_transaction(account_spinner.text, amount.text, category.text, date.text, description.text)
         Button:
             text: "Back"
             on_release: app.root.current = "dashboard"
@@ -100,3 +102,5 @@
         Button:
             text: "Back"
             on_release: app.root.current = "dashboard"
+
+<AcctsDropdown>:
