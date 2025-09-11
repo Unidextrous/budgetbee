@@ -35,12 +35,9 @@
             id: balance
             hint_text: "Balance"
             input_filter: "float"
-        TextInput:
-            id: description
-            hint_text: "Description (optional)"
         Button:
             text: "Save Account"
-            on_release: root.add_account(owner.text, name.text, balance.text, description.text)
+            on_release: root.add_account(owner.text, name.text, balance.text)
         Button:
             text: "Back"
             on_release: app.root.current = "dashboard"
@@ -62,28 +59,31 @@
 
 <AddTransactionScreen>:
     account_spinner: account_spinner
+    category_spinner: category_spinner
     BoxLayout:
         orientation: "vertical"
         Spinner:
             id: account_spinner
             text: "Select Account"
             values: []
+        Spinner:
+            id: category_spinner
+            text: "Select Category"
+            values: []
+            on_text: root.check_new_category(self.text)
         TextInput:
             id: amount
             hint_text: "Amount"
             input_filter: "float"
         TextInput:
-            id: category
-            hint_text: "Category"
-        TextInput:
             id: date
-            hint_text: "Date (YYYY-MM-DD, optional)"
+            hint_text: "Date (YYYY-MM-DD) (Default: Today)"
         TextInput:
             id: description
             hint_text: "Description"
         Button:
             text: "Save Transaction"
-            on_release: root.add_transaction(account_spinner.text, amount.text, category.text, date.text, description.text)
+            on_release: root.add_transaction(account_spinner.text, category_spinner.text, amount.text, date.text, description.text)
         Button:
             text: "Back"
             on_release: app.root.current = "dashboard"
@@ -102,5 +102,3 @@
         Button:
             text: "Back"
             on_release: app.root.current = "dashboard"
-
-<AcctsDropdown>:
