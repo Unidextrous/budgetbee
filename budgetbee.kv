@@ -1,0 +1,102 @@
+#:kivy 2.0
+
+<DashboardScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        Label:
+            text: "BudgetBee Dashboard 🐝"
+            font_size: 32
+        Label:
+            text: "Total Balance: $" + root.total_balance
+            font_size: 24
+        Button:
+            text: "Add Account"
+            on_release: app.root.current = "add_account"
+        Button:
+            text: "View Accounts"
+            on_release: app.root.current = "accounts"
+        Button:
+            text: "Add Transaction"
+            on_release: app.root.current = "add_transaction"
+        Button:
+            text: "View Transactions"
+            on_release: app.root.current = "transactions"
+
+<AddAccountScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        TextInput:
+            id: owner
+            hint_text: "Account Owner"
+        TextInput:
+            id: name
+            hint_text: "Account Name"
+        TextInput:
+            id: balance
+            hint_text: "Balance"
+            input_filter: "float"
+        TextInput:
+            id: description
+            hint_text: "Description (optional)"
+        Button:
+            text: "Save Account"
+            on_release: root.add_account(owner.text, name.text, balance.text, description.text)
+        Button:
+            text: "Back"
+            on_release: app.root.current = "dashboard"
+
+<AccountsScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        Label:
+            text: "Accounts"
+            font_size: 28
+        ScrollView:
+            GridLayout:
+                id: accts_list
+                cols: 1
+                size_hint_y: None
+        Button:
+            text: "Back"
+            on_release: app.root.current = "dashboard"
+
+<AddTransactionScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        TextInput:
+            id: amount
+            hint_text: "Amount"
+            input_filter: "float"
+        TextInput:
+            id: category
+            hint_text: "Category"
+        TextInput:
+            id: date
+            hint_text: "Date (YYYY-MM-DD, optional)"
+        TextInput:
+            id: description
+            hint_text: "Description"
+        TextInput:
+            id: person
+            hint_text: "Person"
+        Button:
+            text: "Save Transaction"
+            on_release: root.add_transaction(amount.text, category.text, date.text, description.text, person.text)
+        Button:
+            text: "Back"
+            on_release: app.root.current = "dashboard"
+
+<TransactionsScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        Label:
+            text: "Transactions"
+            font_size: 28
+        ScrollView:
+            GridLayout:
+                id: trans_list
+                cols: 1
+                size_hint_y: None
+        Button:
+            text: "Back"
+            on_release: app.root.current = "dashboard"
