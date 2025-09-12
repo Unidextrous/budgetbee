@@ -81,7 +81,7 @@ class AccountsScreen(Screen):
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
 
             label = Label(
-                text=f"{acct[1]} - {acct[2]} - {acct[3]:.2f}",
+                text=f"{acct[1]} | {acct[2]} | {acct[3]:.2f}",
                 halign="center",
                 valign="middle"
             )
@@ -145,7 +145,7 @@ class CategoriesScreen(Screen):
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
 
             label = Label(
-                text=f"{cat[1]} - {cat[2]}",
+                text=f"{cat[1]} | {cat[2]}",
                 halign="center",
                 valign="middle"
             )
@@ -212,8 +212,13 @@ class TransactionsScreen(Screen):
         for txn in self.transactions:
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
 
+            if txn[2] >= 0:
+                amount_display = f"${txn[2]:.2f}"
+            else:
+                amount_display = f"-${(txn[2] * -1):.2f}"
+            
             label = Label(
-                text=f"{txn[1]} - ${txn[2]:.2f} - {txn[3]} - {txn[4]} - {txn[5]}",
+                text=f"{txn[1]} | {amount_display} | {txn[3]} | {txn[4]} | {txn[5]}",
                 halign="center",
                 valign="middle"
             )
@@ -289,6 +294,11 @@ class AddTransactionScreen(Screen):
                 return
             category_id, category_type = category
 
+            if category_type == "Income":
+                amount = float(amount)
+            elif category_type == "Expense":
+                amount = float(amount) * -1
+
             # Insert the transaction
             c.execute("""
                 INSERT INTO transactions (account_id, category_id, amount, date, description)
@@ -296,13 +306,8 @@ class AddTransactionScreen(Screen):
             """, (account_id, category_id, float(amount), date, description))
 
             # Update the account balance based on category type
-            if category_type == "Income":
-                new_balance = current_balance + float(amount)
-            elif category_type == "Expense":
-                new_balance = current_balance - float(amount)
-            else:
-                new_balance = current_balance  # fallback, shouldn't happen
-
+            new_balance = current_balance + float(amount)
+            
             c.execute("UPDATE accounts SET balance = ? WHERE id=?", (new_balance, account_id))
 
             conn.commit()
