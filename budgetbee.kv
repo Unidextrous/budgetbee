@@ -10,17 +10,29 @@
             text: "Total Balance: $" + root.total_balance
             font_size: 24
         Button:
-            text: "Add Account"
-            on_release: app.root.current = "add_account"
-        Button:
             text: "View Accounts"
             on_release: app.root.current = "accounts"
         Button:
-            text: "Add Transaction"
-            on_release: app.root.current = "add_transaction"
-        Button:
             text: "View Transactions"
             on_release: app.root.current = "transactions"
+
+<AccountsScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        Label:
+            text: "Accounts"
+            font_size: 28
+        ScrollView:
+            GridLayout:
+                id: accts_list
+                cols: 1
+                size_hint_y: None
+        Button:
+            text: "Add Account"
+            on_release: app.root.current = "add_account"
+        Button:
+            text: "Back"
+            on_release: app.root.current = "dashboard"
 
 <AddAccountScreen>:
     BoxLayout:
@@ -40,19 +52,22 @@
             on_release: root.add_account(owner.text, name.text, balance.text)
         Button:
             text: "Back"
-            on_release: app.root.current = "dashboard"
+            on_release: app.root.current = "accounts"
 
-<AccountsScreen>:
+<TransactionsScreen>:
     BoxLayout:
         orientation: "vertical"
         Label:
-            text: "Accounts"
+            text: "Transactions"
             font_size: 28
         ScrollView:
             GridLayout:
-                id: accts_list
+                id: trans_list
                 cols: 1
                 size_hint_y: None
+        Button:
+            text: "Add Transaction"
+            on_release: app.root.current = "add_transaction"
         Button:
             text: "Back"
             on_release: app.root.current = "dashboard"
@@ -86,19 +101,4 @@
             on_release: root.add_transaction(account_spinner.text, category_spinner.text, amount.text, date.text, description.text)
         Button:
             text: "Back"
-            on_release: app.root.current = "dashboard"
-
-<TransactionsScreen>:
-    BoxLayout:
-        orientation: "vertical"
-        Label:
-            text: "Transactions"
-            font_size: 28
-        ScrollView:
-            GridLayout:
-                id: trans_list
-                cols: 1
-                size_hint_y: None
-        Button:
-            text: "Back"
-            on_release: app.root.current = "dashboard"
+            on_release: app.root.current = "transactions"
