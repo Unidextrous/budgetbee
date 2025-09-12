@@ -16,7 +16,6 @@ Builder.load_file("budgetbee.kv")
 
 DB_NAME = "budgetbee.db"
 
-
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
         c = conn.cursor()
@@ -47,11 +46,12 @@ def init_db():
             CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 account_id INTEGER NOT NULL,
-                category TEXT NOT NULL,
+                category_id TEXT NOT NULL,
                 amount REAL NOT NULL,
                 date TEXT NOT NULL,
                 description TEXT,
                 FOREIGN KEY(account_id) REFERENCES accounts(id)
+                FOREIGN KEY(category_id) REFERENCES categories(id)
             )
         """)
         conn.commit()
@@ -62,7 +62,7 @@ class DashboardScreen(Screen):
     def on_pre_enter(self):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT SUM(amount) FROM transactions")
+            c.execute("SELECT SUM(balance) FROM accounts")
             total = c.fetchone()[0] or 0.0
             self.total_balance = f"{total:.2f}"
 
@@ -199,9 +199,10 @@ class TransactionsScreen(Screen):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("""
-                SELECT t.id, a.name, t.amount, t.category, t.date, t.description
+                SELECT t.id, a.name, t.amount, c.name, t.date, t.description
                 FROM transactions t
                 JOIN accounts a ON t.account_id = a.id
+                JOIN categories c ON t.category_id = c.id
                 ORDER BY t.date DESC
             """)
             self.transactions = c.fetchall()
@@ -261,8 +262,8 @@ class AddTransactionScreen(Screen):
         self.account_spinner.values = accounts
         self.category_spinner.values = categories
         
-    def add_transaction(self, account_name, category, amount, date, description):
-        if not account_name or not category or not amount:
+    def add_transaction(self, account_name, category_name, amount, date, description):
+        if not account_name or not category_name or not amount:
             return  # simple validation
 
         if not date:
@@ -280,10 +281,19 @@ class AddTransactionScreen(Screen):
                 return
             account_id = account[0]
 
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            # Find the account_id by name
+            c.execute("SELECT id FROM categories WHERE name=?", (category_name,))
+            category = c.fetchone()
+            if not category:
+                return
+            category_id = category[0]
+
             c.execute("""
-                INSERT INTO transactions (account_id, category, amount, date, description)
+                INSERT INTO transactions (account_id, category_id, amount, date, description)
                 VALUES (?, ?, ?, ?, ?)
-            """, (account_id, category, float(amount), date, description))
+            """, (account_id, category_id, float(amount), date, description))
             conn.commit()
 
         # Go back to dashboard after saving
