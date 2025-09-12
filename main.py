@@ -98,6 +98,9 @@ class AccountsScreen(Screen):
             box.add_widget(delete_btn)
 
             self.ids.accts_list.add_widget(box)
+        
+        # **Bind height to children**
+        self.ids.accts_list.bind(minimum_height=self.ids.accts_list.setter('height'))
 
     def delete_account(self, acct_id):
         with sqlite3.connect(DB_NAME) as conn:
@@ -162,6 +165,9 @@ class CategoriesScreen(Screen):
             box.add_widget(delete_btn)
 
             self.ids.cats_list.add_widget(box)
+        
+        # **Bind height to children**
+        self.ids.cats_list.bind(minimum_height=self.ids.cats_list.setter('height'))
 
     def delete_category(self, cat_id):
         with sqlite3.connect(DB_NAME) as conn:
@@ -235,6 +241,9 @@ class TransactionsScreen(Screen):
             box.add_widget(delete_btn)
 
             self.ids.txns_list.add_widget(box)
+
+        # **Bind height to children**
+        self.ids.txns_list.bind(minimum_height=self.ids.txns_list.setter('height'))
 
     def delete_transaction(self, txn_id):
         with sqlite3.connect(DB_NAME) as conn:
