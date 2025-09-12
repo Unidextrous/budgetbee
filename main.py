@@ -248,8 +248,28 @@ class TransactionsScreen(Screen):
     def delete_transaction(self, txn_id):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("DELETE FROM transactions WHERE id=?", (txn_id,))
+            # Get transaction details
+            c.execute("""
+                SELECT account_id, category_id, amount
+                FROM transactions
+                WHERE id=?
+            """, (txn_id,))
+            txn = c.fetchone()
+            if txn:
+                account_id, category_id, amount = txn
+
+                # Get category type
+                c.execute("SELECT type FROM categories WHERE id=?", (category_id,))
+                cat_type = c.fetchone()[0]
+                c.execute(
+                    "UPDATE accounts SET balance = balance - ? WHERE id=?",
+                    (amount, account_id)
+                )
+
+                # Delete the transaction
+                c.execute("DELETE FROM transactions WHERE id=?", (txn_id,))
             conn.commit()
+
         # Refresh the screen
         self.on_pre_enter()
 
