@@ -10,10 +10,13 @@
             text: "Total Balance: $" + root.total_balance
             font_size: 24
         Button:
-            text: "View Accounts"
+            text: "Accounts"
             on_release: app.root.current = "accounts"
         Button:
-            text: "View Transactions"
+            text: "Categories"
+            on_release: app.root.current = "categories"
+        Button:
+            text: "Transactions"
             on_release: app.root.current = "transactions"
 
 <AccountsScreen>:
@@ -54,6 +57,47 @@
             text: "Back"
             on_release: app.root.current = "accounts"
 
+<CategoriesScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        Label:
+            text: "Categories"
+            font_size: 28
+        ScrollView:
+            GridLayout:
+                id: cats_list
+                cols: 1
+                size_hint_y: None
+        Button:
+            text: "Add Category"
+            on_release: app.root.current = "add_category"
+        Button:
+            text: "Back"
+            on_release: app.root.current = "dashboard"
+
+<AddCategoryScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        TextInput:
+            id: name
+            hint_text: "Category Name"
+        BoxLayout:
+            orientation: "horizontal"
+            ToggleButton:
+                id: income_btn
+                text: "Income"
+                group: "type"
+            ToggleButton:
+                id: expense_btn
+                text: "Expense"
+                group: "type"
+        Button:
+            text: "Save Category"
+            on_release: root.add_category(name.text)
+        Button:
+            text: "Back"
+            on_release: app.root.current = "categories"
+
 <TransactionsScreen>:
     BoxLayout:
         orientation: "vertical"
@@ -62,7 +106,7 @@
             font_size: 28
         ScrollView:
             GridLayout:
-                id: trans_list
+                id: txns_list
                 cols: 1
                 size_hint_y: None
         Button:
@@ -85,7 +129,6 @@
             id: category_spinner
             text: "Select Category"
             values: []
-            on_text: root.check_new_category(self.text)
         TextInput:
             id: amount
             hint_text: "Amount"

@@ -35,8 +35,8 @@ def init_db():
         c.execute("""
             CREATE TABLE IF NOT EXISTS categories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                income_expense TEXT
+                name TEXT NOT NULL UNIQUE,
+                type TEXT
             )
         """)
         conn.commit()
@@ -72,15 +72,40 @@ class AccountsScreen(Screen):
     def on_pre_enter(self):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT owner, name, balance FROM accounts")
+            c.execute("SELECT id, owner, name, balance FROM accounts")
             self.accounts = c.fetchall()
 
         # Update the UI
         self.ids.accts_list.clear_widgets()
-        for a in self.accounts:
-            self.ids.accts_list.add_widget(
-                Label(text=f"{a[0]} - {a[1]} - {a[2]:.2f}")
+        for acct in self.accounts:
+            box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
+
+            label = Label(
+                text=f"{acct[1]} - {acct[2]} - {acct[3]:.2f}",
+                halign="center",
+                valign="middle"
             )
+            label.bind(size=label.setter("text_size"))
+
+            delete_btn = Button(
+                text="X",
+                size_hint_x=None,
+                width=40
+            )
+            delete_btn.bind(on_release=lambda btn, acct_id=acct[0]: self.delete_account(acct_id))
+
+            box.add_widget(label)
+            box.add_widget(delete_btn)
+
+            self.ids.accts_list.add_widget(box)
+
+    def delete_account(self, acct_id):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM accounts WHERE id=?", (acct_id,))
+            conn.commit()
+        # Refresh the screen
+        self.on_pre_enter()
 
 class AddAccountScreen(Screen):
     def add_account(self, owner, name, balance):
@@ -103,8 +128,69 @@ class AddAccountScreen(Screen):
             """, (owner, name, balance))
             conn.commit()
 
-        # Go back to dashboard after saving
-        self.manager.current = "dashboard"
+        self.manager.current = "accounts"
+
+class CategoriesScreen(Screen):
+    categories = ListProperty([])
+
+    def on_pre_enter(self):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("SELECT id, name, type FROM categories")
+            self.categories = c.fetchall()
+
+        # Update the UI
+        self.ids.cats_list.clear_widgets()
+        for cat in self.categories:
+            box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
+
+            label = Label(
+                text=f"{cat[1]} - {cat[2]}",
+                halign="center",
+                valign="middle"
+            )
+            label.bind(size=label.setter("text_size"))
+
+            delete_btn = Button(
+                text="X",
+                size_hint_x=None,
+                width=40
+            )
+            delete_btn.bind(on_release=lambda btn, cat_id=cat[0]: self.delete_category(cat_id))
+
+            box.add_widget(label)
+            box.add_widget(delete_btn)
+
+            self.ids.cats_list.add_widget(box)
+
+    def delete_category(self, cat_id):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM categories WHERE id=?", (cat_id,))
+            conn.commit()
+        # Refresh the screen
+        self.on_pre_enter()
+
+class AddCategoryScreen(Screen):
+    def add_category(self, name):
+        type = None
+        if self.ids.income_btn.state == "down":
+            type = "Income"
+        elif self.ids.expense_btn.state == "down":
+            type = "Expense"
+
+        if not name or not type:
+            return  # simple validation
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO categories (name, type)
+                VALUES (?, ?)
+            """, (name, type))
+            conn.commit()
+
+        self.manager.current = "categories"
 
 class TransactionsScreen(Screen):
     transactions = ListProperty([])
@@ -112,9 +198,8 @@ class TransactionsScreen(Screen):
     def on_pre_enter(self):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            # Join with accounts to get the account name
             c.execute("""
-                SELECT a.name, t.amount, t.category, t.date, t.description
+                SELECT t.id, a.name, t.amount, t.category, t.date, t.description
                 FROM transactions t
                 JOIN accounts a ON t.account_id = a.id
                 ORDER BY t.date DESC
@@ -122,11 +207,36 @@ class TransactionsScreen(Screen):
             self.transactions = c.fetchall()
 
         # Update the UI
-        self.ids.trans_list.clear_widgets()
-        for t in self.transactions: 
-            self.ids.trans_list.add_widget(
-                Label(text=f"{t[0]} - ${t[1]:.2f} - {t[2]} - {t[3]} - {t[4]}")
+        self.ids.txns_list.clear_widgets()
+        for txn in self.transactions:
+            box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
+
+            label = Label(
+                text=f"{txn[1]} - ${txn[2]:.2f} - {txn[3]} - {txn[4]} - {txn[5]}",
+                halign="center",
+                valign="middle"
             )
+            label.bind(size=label.setter("text_size"))
+
+            delete_btn = Button(
+                text="X",
+                size_hint_x=None,
+                width=40
+            )
+            delete_btn.bind(on_release=lambda btn, txn_id=txn[0]: self.delete_transaction(txn_id))
+
+            box.add_widget(label)
+            box.add_widget(delete_btn)
+
+            self.ids.txns_list.add_widget(box)
+
+    def delete_transaction(self, txn_id):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM transactions WHERE id=?", (txn_id,))
+            conn.commit()
+        # Refresh the screen
+        self.on_pre_enter()
 
 class AddTransactionScreen(Screen):
     account_spinner = ObjectProperty(None)
@@ -177,7 +287,7 @@ class AddTransactionScreen(Screen):
             conn.commit()
 
         # Go back to dashboard after saving
-        self.manager.current = "dashboard"
+        self.manager.current = "transactions"
 
 class BudgetBeeApp(App):
     def build(self):
@@ -186,6 +296,8 @@ class BudgetBeeApp(App):
         sm.add_widget(DashboardScreen(name="dashboard"))
         sm.add_widget(AccountsScreen(name="accounts"))
         sm.add_widget(AddAccountScreen(name="add_account"))
+        sm.add_widget(CategoriesScreen(name="categories"))
+        sm.add_widget(AddCategoryScreen(name="add_category"))
         sm.add_widget(TransactionsScreen(name="transactions"))
         sm.add_widget(AddTransactionScreen(name="add_transaction"))
         return sm
