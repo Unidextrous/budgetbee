@@ -274,29 +274,40 @@ class AddTransactionScreen(Screen):
 
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
+
             # Find the account_id by name
-            c.execute("SELECT id FROM accounts WHERE name=?", (account_name,))
+            c.execute("SELECT id, balance FROM accounts WHERE name=?", (account_name,))
             account = c.fetchone()
             if not account:
                 return
-            account_id = account[0]
+            account_id, current_balance = account
 
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-            # Find the account_id by name
-            c.execute("SELECT id FROM categories WHERE name=?", (category_name,))
+            # Find the category type by name
+            c.execute("SELECT id, type FROM categories WHERE name=?", (category_name,))
             category = c.fetchone()
             if not category:
                 return
-            category_id = category[0]
+            category_id, category_type = category
 
+            # Insert the transaction
             c.execute("""
                 INSERT INTO transactions (account_id, category_id, amount, date, description)
                 VALUES (?, ?, ?, ?, ?)
             """, (account_id, category_id, float(amount), date, description))
+
+            # Update the account balance based on category type
+            if category_type == "Income":
+                new_balance = current_balance + float(amount)
+            elif category_type == "Expense":
+                new_balance = current_balance - float(amount)
+            else:
+                new_balance = current_balance  # fallback, shouldn't happen
+
+            c.execute("UPDATE accounts SET balance = ? WHERE id=?", (new_balance, account_id))
+
             conn.commit()
 
-        # Go back to dashboard after saving
+        # Go back to transactions screen
         self.manager.current = "transactions"
 
 class BudgetBeeApp(App):
