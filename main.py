@@ -412,8 +412,8 @@ class AddTransactionScreen(Screen):
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM accounts WHERE is_active = 1")
         accounts = [row[0] for row in cursor.fetchall()]
-        cursor.execute("SELECT name FROM categories WHERE name != 'System'")
-        categories = [row[0] for row in cursor.fetchall()]
+        cursor.execute("SELECT name, type FROM categories WHERE name != 'System'")
+        categories = [f"{row[0]} - ({row[1]})" for row in cursor.fetchall()]
 
         conn.close()
 
