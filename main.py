@@ -24,7 +24,8 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 owner TEXT NOT NULL,
                 name TEXT NOT NULL UNIQUE,
-                balance REAL NOT NULL
+                balance REAL NOT NULL,
+                is_active INTEGER DEFAULT 1
             )
         """)
         conn.commit()
@@ -38,6 +39,13 @@ def init_db():
                 type TEXT
             )
         """)
+        conn.commit()
+
+    with sqlite3.connect(DB_NAME) as conn:
+        c = conn.cursor()
+        c.execute("SELECT id FROM categories WHERE name=?", ("System",))
+        if not c.fetchone():
+            c.execute("INSERT INTO categories (name, type) VALUES (?, ?)", ("System", "system"))
         conn.commit()
 
     with sqlite3.connect(DB_NAME) as conn:
@@ -56,13 +64,34 @@ def init_db():
         """)
         conn.commit()
 
+def get_system_category_id():
+    with sqlite3.connect(DB_NAME) as conn:
+        c = conn.cursor()
+
+        # Try to find the System category
+        c.execute("SELECT id FROM categories WHERE name = 'System'")
+        row = c.fetchone()
+
+        if row:
+            system_id = row[0]
+        else:
+            # Create System category if it doesn't exist
+            c.execute(
+                "INSERT INTO categories (name, is_visible) VALUES (?, ?)",
+                ('System', 0)  # 0 = invisible
+            )
+            system_id = c.lastrowid
+            conn.commit()
+
+        return system_id
+
 class DashboardScreen(Screen):
     total_balance = StringProperty("0.00")
 
     def on_pre_enter(self):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT SUM(balance) FROM accounts")
+            c.execute("SELECT SUM(balance) FROM accounts WHERE is_active = 1")
             total = c.fetchone()[0] or 0.0
             self.total_balance = f"{total:.2f}"
 
@@ -72,7 +101,7 @@ class AccountsScreen(Screen):
     def on_pre_enter(self):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT id, owner, name, balance FROM accounts")
+            c.execute("SELECT id, owner, name, balance FROM accounts WHERE is_active = 1")
             self.accounts = c.fetchall()
 
         # Update the UI
@@ -105,7 +134,21 @@ class AccountsScreen(Screen):
     def delete_account(self, acct_id):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("DELETE FROM accounts WHERE id=?", (acct_id,))
+
+            # Get account name and balance before deletion
+            c.execute("SELECT name, balance FROM accounts WHERE id=?", (acct_id,))
+            row = c.fetchone()
+            if not row:
+                return
+            acct_name, acct_balance = row
+
+            c.execute("""
+                INSERT INTO transactions (account_id, category_id, amount, date, description)
+                VALUES (?, ?, ?, DATE('now'), ?)
+            """, (acct_id, get_system_category_id(), acct_balance, f"Deleted account {acct_name}"))
+
+            c = conn.cursor()
+            c.execute("UPDATE accounts SET is_active = 0 WHERE id=?", (acct_id,))
             conn.commit()
         # Refresh the screen
         self.on_pre_enter()
@@ -125,12 +168,56 @@ class AddAccountScreen(Screen):
 
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("""
-                INSERT INTO accounts (owner, name, balance)
-                VALUES (?, ?, ?)
-            """, (owner, name, balance))
-            conn.commit()
 
+            c.execute("SELECT id, is_active FROM accounts WHERE name = ?", (name,))
+            row = c.fetchone()
+
+            if row:
+                account_id, is_active = row
+
+                if is_active == 1:
+                    # Account already active → don't add
+                    return False, "Account already exists."
+                else:
+                    # Reactivate the deleted account
+                    c.execute(
+                        "UPDATE accounts SET is_active = 1, balance = ? WHERE id = ?",
+                        (balance, account_id)
+                    )
+                    conn.commit()
+
+                    # Add system transaction for account reactivation
+                    c.execute(
+                        """
+                        INSERT INTO transactions (account_id, category_id, amount, description, date)
+                        VALUES (?, ?, ?, ?, DATE('now'))
+                        """,
+                        (account_id, get_system_category_id(),
+                        balance, f'Reactivated {name}')
+                    )
+                    conn.commit()
+                    self.manager.current = "accounts"
+                    return True, "Account reactivated successfully."
+            else:
+                # New account
+                c.execute(
+                    "INSERT INTO accounts (owner, name, balance, is_active) VALUES (?, ?, ?, 1)",
+                    (owner, name, balance)
+                )
+                account_id = c.lastrowid
+
+                # Add system transaction for new account
+                c.execute(
+                    """
+                    INSERT INTO transactions (account_id, category_id, amount, description, date)
+                    VALUES (?, ?, ?, ?, DATE('now'))
+                    """,
+                    (account_id, get_system_category_id(), balance, f'Added {name}')
+                )
+                conn.commit()
+                self.manager.current = "accounts"
+                return True, "Account added successfully."
+    
         self.manager.current = "accounts"
 
 class CategoriesScreen(Screen):
@@ -139,7 +226,7 @@ class CategoriesScreen(Screen):
     def on_pre_enter(self):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT id, name, type FROM categories")
+            c.execute("SELECT id, name, type FROM categories WHERE name != 'System'")
             self.categories = c.fetchall()
 
         # Update the UI
@@ -230,15 +317,16 @@ class TransactionsScreen(Screen):
             )
             label.bind(size=label.setter("text_size"))
 
-            delete_btn = Button(
-                text="X",
-                size_hint_x=None,
-                width=40
-            )
-            delete_btn.bind(on_release=lambda btn, txn_id=txn[0]: self.delete_transaction(txn_id))
-
             box.add_widget(label)
-            box.add_widget(delete_btn)
+
+            if txn[3] != "System":
+                delete_btn = Button(
+                    text="X",
+                    size_hint_x=None,
+                    width=40
+                )
+                delete_btn.bind(on_release=lambda btn, txn_id=txn[0]: self.delete_transaction(txn_id))
+                box.add_widget(delete_btn)
 
             self.ids.txns_list.add_widget(box)
 
@@ -285,9 +373,9 @@ class AddTransactionScreen(Screen):
         conn = sqlite3.connect("budgetbee.db")
 
         cursor = conn.cursor()
-        cursor.execute("SELECT name FROM accounts")
+        cursor.execute("SELECT name FROM accounts WHERE is_active = 1")
         accounts = [row[0] for row in cursor.fetchall()]
-        cursor.execute("SELECT name FROM categories")
+        cursor.execute("SELECT name FROM categories WHERE name != 'System'")
         categories = [row[0] for row in cursor.fetchall()]
 
         conn.close()
