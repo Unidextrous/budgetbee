@@ -84,18 +84,7 @@ def get_system_category_id():
         c.execute("SELECT id FROM categories WHERE name = 'System'")
         row = c.fetchone()
 
-        if row:
-            system_id = row[0]
-        else:
-            # Create invisible system category
-            c.execute(
-                "INSERT INTO categories (name, is_visible) VALUES (?, ?)",
-                ('System', 0)  # 0 = invisible
-            )
-            system_id = c.lastrowid
-            conn.commit()
-
-        return system_id
+        return row[0]
 
 # -----------------------------
 # Screens
@@ -409,11 +398,11 @@ class AddTransactionScreen(Screen):
         """Update spinner dropdown values"""
         conn = sqlite3.connect("budgetbee.db")
 
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM accounts WHERE is_active = 1")
-        accounts = [row[0] for row in cursor.fetchall()]
-        cursor.execute("SELECT name, type FROM categories WHERE name != 'System'")
-        categories = [f"{row[0]} - ({row[1]})" for row in cursor.fetchall()]
+        c = conn.cursor()
+        c.execute("SELECT name FROM accounts WHERE is_active = 1")
+        accounts = [row[0] for row in c.fetchall()]
+        c.execute("SELECT name, type FROM categories WHERE name != 'System'")
+        categories = [f"{row[0]} - ({row[1]})" for row in c.fetchall()]
 
         conn.close()
 
@@ -421,10 +410,13 @@ class AddTransactionScreen(Screen):
         self.account_spinner.values = accounts
         self.category_spinner.values = categories
         
-    def add_transaction(self, account_name, category_name, amount, date, description):
+    def add_transaction(self, account_name, category_display, amount, date, description):
         """Add a new transaction and update account balance"""
-        if not account_name or not category_name or not amount:
+        if not account_name or not category_display or not amount:
             return  # simple validation
+        
+        # Extract category name from display text
+        category_name = category_display.split(" -")[0]
 
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
