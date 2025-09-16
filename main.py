@@ -12,11 +12,16 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.properties import StringProperty, ListProperty
 from kivy.lang import Builder
 
+# Load the Kivy KV layout file
 Builder.load_file("budgetbee.kv")
 
+# Database file name
 DB_NAME = "budgetbee.db"
 
+# Database file name
 def init_db():
+    """Initialize the database tables for accounts, categories, and transactions"""
+    # Accounts table
     with sqlite3.connect(DB_NAME) as conn:
         c = conn.cursor()
         c.execute("""
@@ -30,6 +35,7 @@ def init_db():
         """)
         conn.commit()
 
+    # Categories table
     with sqlite3.connect(DB_NAME) as conn:
         c = conn.cursor()
         c.execute("""
@@ -41,6 +47,7 @@ def init_db():
         """)
         conn.commit()
 
+    # Ensure the System category exists (used for internal/account transactions)
     with sqlite3.connect(DB_NAME) as conn:
         c = conn.cursor()
         c.execute("SELECT id FROM categories WHERE name=?", ("System",))
@@ -48,6 +55,7 @@ def init_db():
             c.execute("INSERT INTO categories (name, type) VALUES (?, ?)", ("System", "system"))
         conn.commit()
 
+    # Transactions table
     with sqlite3.connect(DB_NAME) as conn:
         c = conn.cursor()
         c.execute("""
@@ -64,7 +72,11 @@ def init_db():
         """)
         conn.commit()
 
+# -----------------------------
+# Helper functions
+# -----------------------------
 def get_system_category_id():
+    """Get the ID of the 'System' category, creating it if it doesn't exist"""
     with sqlite3.connect(DB_NAME) as conn:
         c = conn.cursor()
 
@@ -75,7 +87,7 @@ def get_system_category_id():
         if row:
             system_id = row[0]
         else:
-            # Create System category if it doesn't exist
+            # Create invisible system category
             c.execute(
                 "INSERT INTO categories (name, is_visible) VALUES (?, ?)",
                 ('System', 0)  # 0 = invisible
@@ -85,30 +97,39 @@ def get_system_category_id():
 
         return system_id
 
+# -----------------------------
+# Screens
+# -----------------------------
 class DashboardScreen(Screen):
     total_balance = StringProperty("0.00")
 
     def on_pre_enter(self):
+        """Update total balance before entering the dashboard"""
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("SELECT SUM(balance) FROM accounts WHERE is_active = 1")
             total = c.fetchone()[0] or 0.0
             self.total_balance = f"{total:.2f}"
 
+# -----------------------------
+# Accounts screens
+# -----------------------------
 class AccountsScreen(Screen):
-    accounts = ListProperty([])
+    accounts = ListProperty([])     # List of active accounts
 
     def on_pre_enter(self):
+        """Fetch active accounts and populate the UI"""
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("SELECT id, owner, name, balance FROM accounts WHERE is_active = 1")
             self.accounts = c.fetchall()
 
-        # Update the UI
+        # Update the UI list
         self.ids.accts_list.clear_widgets()
         for acct in self.accounts:
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
 
+            # Display account info
             label = Label(
                 text=f"{acct[1]} | {acct[2]} | {acct[3]:.2f}",
                 halign="center",
@@ -116,6 +137,7 @@ class AccountsScreen(Screen):
             )
             label.bind(size=label.setter("text_size"))
 
+            # Delete button
             delete_btn = Button(
                 text="X",
                 size_hint_x=None,
@@ -128,36 +150,42 @@ class AccountsScreen(Screen):
 
             self.ids.accts_list.add_widget(box)
         
-        # **Bind height to children**
+        # Make list height adjust to number of items
         self.ids.accts_list.bind(minimum_height=self.ids.accts_list.setter('height'))
 
     def delete_account(self, acct_id):
+        # Make list height adjust to number of items
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
 
-            # Get account name and balance before deletion
+            # Get account info
             c.execute("SELECT name, balance FROM accounts WHERE id=?", (acct_id,))
             row = c.fetchone()
             if not row:
                 return
             acct_name, acct_balance = row
 
+            # Add system transaction for account deletion
             c.execute("""
                 INSERT INTO transactions (account_id, category_id, amount, date, description)
                 VALUES (?, ?, ?, DATE('now'), ?)
             """, (acct_id, get_system_category_id(), acct_balance, f"Deleted account {acct_name}"))
 
+            # Mark account as inactive
             c = conn.cursor()
             c.execute("UPDATE accounts SET is_active = 0 WHERE id=?", (acct_id,))
             conn.commit()
-        # Refresh the screen
+
+        # Refresh the accounts list
         self.on_pre_enter()
 
 class AddAccountScreen(Screen):
+    """Add a new account or reactivate a deleted account"""
     def add_account(self, owner, name, balance):
         if not owner or not name:
-            return  # simple validation
+            return  # Validate input
 
+        # Convert balance to float
         if not balance:
             balance = 0.00
         else:
@@ -169,6 +197,7 @@ class AddAccountScreen(Screen):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
 
+            # Check if account exists
             c.execute("SELECT id, is_active FROM accounts WHERE name = ?", (name,))
             row = c.fetchone()
 
@@ -220,10 +249,14 @@ class AddAccountScreen(Screen):
     
         self.manager.current = "accounts"
 
+# -----------------------------
+# Categories screens
+# -----------------------------
 class CategoriesScreen(Screen):
     categories = ListProperty([])
 
     def on_pre_enter(self):
+        """Fetch categories and populate the UI, excluding System"""
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("SELECT id, name, type FROM categories WHERE name != 'System'")
@@ -241,6 +274,7 @@ class CategoriesScreen(Screen):
             )
             label.bind(size=label.setter("text_size"))
 
+            # Delete button
             delete_btn = Button(
                 text="X",
                 size_hint_x=None,
@@ -285,10 +319,14 @@ class AddCategoryScreen(Screen):
 
         self.manager.current = "categories"
 
+# -----------------------------
+# Transactions screens
+# -----------------------------
 class TransactionsScreen(Screen):
     transactions = ListProperty([])
 
     def on_pre_enter(self):
+        """Fetch transactions and populate UI"""
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("""
@@ -305,11 +343,9 @@ class TransactionsScreen(Screen):
         for txn in self.transactions:
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
 
-            if txn[2] >= 0:
-                amount_display = f"${txn[2]:.2f}"
-            else:
-                amount_display = f"-${(txn[2] * -1):.2f}"
-            
+            # Format amount display
+            amount_display = f"${txn[2]:.2f}" if txn[2] >= 0 else f"-${-txn[2]:.2f}"
+
             label = Label(
                 text=f"{txn[1]} | {amount_display} | {txn[3]} | {txn[4]} | {txn[5]}",
                 halign="center",
@@ -319,6 +355,7 @@ class TransactionsScreen(Screen):
 
             box.add_widget(label)
 
+            # Add delete button for non-system transactions
             if txn[3] != "System":
                 delete_btn = Button(
                     text="X",
@@ -334,6 +371,7 @@ class TransactionsScreen(Screen):
         self.ids.txns_list.bind(minimum_height=self.ids.txns_list.setter('height'))
 
     def delete_transaction(self, txn_id):
+        """Delete a transaction and adjust account balance"""
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             # Get transaction details
@@ -346,9 +384,7 @@ class TransactionsScreen(Screen):
             if txn:
                 account_id, category_id, amount = txn
 
-                # Get category type
-                c.execute("SELECT type FROM categories WHERE id=?", (category_id,))
-                cat_type = c.fetchone()[0]
+                # Update account balance
                 c.execute(
                     "UPDATE accounts SET balance = balance - ? WHERE id=?",
                     (amount, account_id)
@@ -366,10 +402,11 @@ class AddTransactionScreen(Screen):
     category_spinner = ObjectProperty(None)
 
     def on_pre_enter(self):
-        # Refresh account list each time the screen is shown
+        """Refresh account and category spinners when screen is shown"""
         self.refresh_spinners()
 
     def refresh_spinners(self):
+        """Update spinner dropdown values"""
         conn = sqlite3.connect("budgetbee.db")
 
         cursor = conn.cursor()
@@ -385,6 +422,7 @@ class AddTransactionScreen(Screen):
         self.category_spinner.values = categories
         
     def add_transaction(self, account_name, category_name, amount, date, description):
+        """Add a new transaction and update account balance"""
         if not account_name or not category_name or not amount:
             return  # simple validation
 
@@ -397,24 +435,25 @@ class AddTransactionScreen(Screen):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
 
-            # Find the account_id by name
+            # Get account ID and current balance
             c.execute("SELECT id, balance FROM accounts WHERE name=?", (account_name,))
             account = c.fetchone()
             if not account:
                 return
             account_id, current_balance = account
 
-            # Find the category type by name
+            # Get category ID and type
             c.execute("SELECT id, type FROM categories WHERE name=?", (category_name,))
             category = c.fetchone()
             if not category:
                 return
             category_id, category_type = category
 
+            # Adjust amount based on category type 
             if category_type == "Income":
                 amount = float(amount)
             elif category_type == "Expense":
-                amount = float(amount) * -1
+                amount = -float(amount)
 
             # Insert the transaction
             c.execute("""
@@ -432,10 +471,15 @@ class AddTransactionScreen(Screen):
         # Go back to transactions screen
         self.manager.current = "transactions"
 
+# -----------------------------
+# App entry point
+# -----------------------------
 class BudgetBeeApp(App):
     def build(self):
-        init_db()
+        init_db()   # Ensure database exists
         sm = ScreenManager()
+
+        # Add all screens
         sm.add_widget(DashboardScreen(name="dashboard"))
         sm.add_widget(AccountsScreen(name="accounts"))
         sm.add_widget(AddAccountScreen(name="add_account"))
