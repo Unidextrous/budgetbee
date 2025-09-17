@@ -693,7 +693,7 @@ class BudgetManager:
             c.execute("""
                 SELECT SUM(t.amount) FROM transactions t
                 JOIN budget_transactions bt ON t.id = bt.transaction_id
-                WHERE bt.budget_id=? AND t.projected=1 AND t.status='pending'
+                WHERE bt.budget_id=? AND t.projected=1 AND t.status='Pending'
             """, (budget_id,))
             projected = c.fetchone()[0] or 0
 
@@ -880,7 +880,7 @@ class BudgetSummaryScreen(Screen):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("""
-                SELECT t.id, a.name, c.name, t.amount, t.date
+                SELECT t.id, a.name, c.name, t.amount, t.date, t.status
                 FROM transactions t
                 JOIN accounts a ON t.account_id = a.id
                 JOIN categories c ON t.category_id = c.id
@@ -931,6 +931,13 @@ class BudgetSummaryScreen(Screen):
             )
             delete_btn.bind(on_release=lambda btn, txn_id=txn[0]: self.delete_projected_transaction(txn_id))
 
+            # Disable buttons if already completed/skipped
+            if txn[5] in ['completed', 'skipped']:
+                complete_btn.disabled = True
+                skip_btn.disabled = True
+                complete_btn.background_color = (0.7, 0.7, 0.7, 1)
+                skip_btn.background_color = (0.7, 0.7, 0.7, 1)
+                
             box.add_widget(label)
             box.add_widget(complete_btn)
             box.add_widget(skip_btn)
@@ -995,8 +1002,8 @@ class BudgetSummaryScreen(Screen):
 
             # Insert projected transaction
             c.execute("""
-                INSERT INTO transactions (account_id, category_id, amount, date, projected)
-                VALUES (?, ?, ?, ?, 1)
+                INSERT INTO transactions (account_id, category_id, amount, date, projected, status)
+                VALUES (?, ?, ?, ?, 1, 'Pending')
             """, (account_id, category_id, amount, date))
             txn_id = c.lastrowid
 
