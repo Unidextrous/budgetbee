@@ -711,19 +711,43 @@ class BudgetManager:
             c.execute("SELECT SUM(allocated_amount) FROM budgeted_categories WHERE budget_id=?", (budget_id,))
             allocated = c.fetchone()[0] or 0
 
-            # Total spent (non-projected)
-            c.execute("""
-                SELECT SUM(t.amount) FROM transactions t
-                JOIN budget_transactions bt ON t.id = bt.transaction_id
-                WHERE bt.budget_id=? AND t.projected=0 AND amount<0
-            """, (budget_id,))
-            spent = c.fetchone()[0] or 0
-            if type(spent) == float:
-                spent = -spent
+            # Get budget start & end
+            c.execute("SELECT start_date, end_date FROM budgets WHERE id=?", (budget_id,))
+            row = c.fetchone()
+            if not row:
+                # no such budget
+                return {
+                    "allocated": 0,
+                    "spent": 0,
+                    "projected": 0,
+                    "remaining": 0
+                }
 
-            # Total projected (only pending)
+            start_date, end_date = row
+
+            # Total spent (transactions with amount < 0 in date range)
+            if end_date:
+                c.execute("""
+                    SELECT SUM(amount) 
+                    FROM transactions
+                    WHERE projected=0 AND amount<0
+                    AND date BETWEEN ? AND ?
+                """, (start_date, end_date))
+            else:
+                c.execute("""
+                    SELECT SUM(amount) 
+                    FROM transactions
+                    WHERE projected=0 AND amount<0
+                    AND date >= ?
+                """, (start_date,))
+            
+            spent = c.fetchone()[0] or 0
+            spent = -spent  # flip to positive
+
+            # Total projected (only pending, linked transactions)
             c.execute("""
-                SELECT SUM(t.amount) FROM transactions t
+                SELECT SUM(t.amount) 
+                FROM transactions t
                 JOIN budget_transactions bt ON t.id = bt.transaction_id
                 WHERE bt.budget_id=? AND t.projected=1 AND t.status='Pending'
             """, (budget_id,))
@@ -782,44 +806,66 @@ class AddBudgetScreen(Screen):
         self.ids.start_date.text = datetime.now().strftime("%Y-%m-%d")
         self.ids.type_spinner.text = "Paycheck"  # default type
 
-    def add_budget(self, name, start_date, end_date=None):
-        if not name:
-            return
-
-        if not start_date:
-            start_date = datetime.now().strftime("%Y-%m-%d")
+    def add_budget(self, name, start_date, type):
+        from datetime import datetime, timedelta
+        start = datetime.strptime(start_date, "%Y-%m-%d")
 
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
 
-            # Update previous budget's end date (if it exists)
+            # Step 1: Insert the new budget
             c.execute("""
-                SELECT id, start_date FROM budgets
-                WHERE end_date IS NULL
-                ORDER BY start_date DESC
-                LIMIT 1
-            """)
-            prev_budget = c.fetchone()
-            if prev_budget:
-                prev_id, prev_start = prev_budget
-                prev_end_date = (datetime.strptime(start_date, "%Y-%m-%d") - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-                c.execute("UPDATE budgets SET end_date=? WHERE id=?", (prev_end_date, prev_id))
-
-            # Insert the new budget
-            c.execute("""
-                INSERT INTO budgets (name, start_date, end_date)
+                INSERT INTO budgets (name, start_date, type)
                 VALUES (?, ?, ?)
-            """, (name, start_date, end_date))
-            budget_id = c.lastrowid
+            """, (name, start_date, type))
+            new_id = c.lastrowid
 
-            # Find all transactions within the budget period
+            # Step 2: Find overlapping budgets
             c.execute("""
-                SELECT id FROM transactions
-                WHERE date >= ? AND (date <= ? OR ? IS NULL)
-            """, (start_date, end_date, end_date))
+                SELECT id, start_date, end_date FROM budgets
+                WHERE id != ?
+            """, (new_id,))
+            overlaps = c.fetchall()
+
+            for bid, s, e in overlaps:
+                s = datetime.strptime(s, "%Y-%m-%d")
+                e = datetime.strptime(e, "%Y-%m-%d") if e else None
+
+                # Case A: existing budget starts before new and ends after new starts → cut it
+                if s <= start and (e is None or e >= start):
+                    new_end = start - timedelta(days=1)
+                    c.execute("UPDATE budgets SET end_date=? WHERE id=?", (new_end.strftime("%Y-%m-%d"), bid))
+
+                # Case B: existing budget starts after new budget → cut new one
+                if s >= start:
+                    new_end = s - timedelta(days=1)
+                    c.execute("UPDATE budgets SET end_date=? WHERE id=?", (new_end.strftime("%Y-%m-%d"), new_id))
+
+            conn.commit()
+
+            self.link_existing_transactions_to_budget(new_id)
+            return new_id
+
+    def link_existing_transactions_to_budget(self, budget_id):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("SELECT start_date, end_date FROM budgets WHERE id=?", (budget_id,))
+            start_date, end_date = c.fetchone()
+
+            if end_date:
+                c.execute("""
+                    SELECT id FROM transactions
+                    WHERE date BETWEEN ? AND ? 
+                """, (start_date, end_date))
+            else:
+                c.execute("""
+                    SELECT id FROM transactions
+                    WHERE date >= ?
+                """, (start_date,))
+            
             txn_ids = [row[0] for row in c.fetchall()]
 
-            # Link transactions to the budget
+            # Insert links
             for txn_id in txn_ids:
                 c.execute("""
                     INSERT OR IGNORE INTO budget_transactions (budget_id, transaction_id)
@@ -827,7 +873,6 @@ class AddBudgetScreen(Screen):
                 """, (budget_id, txn_id))
 
             conn.commit()
-        return budget_id
 
 class BudgetSummaryScreen(Screen):
     budget_id = None
@@ -838,6 +883,9 @@ class BudgetSummaryScreen(Screen):
         # Clear old widgets
         self.ids.allocated_list.clear_widgets()
         self.ids.projected_list.clear_widgets()
+
+        budget_manager = BudgetManager()
+        budget_manager.get_budget_summary(self.budget_id)
 
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
@@ -1091,6 +1139,13 @@ class BudgetSummaryScreen(Screen):
         self.ids.proj_date.text = ""
         self.load_projected_transactions()
         self.update_summary_labels()
+
+    def update_spent(self):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("""
+                
+            """)
 
     def update_projected_status(self, txn_id, new_status):
         """Mark a projected transaction as completed or skipped"""
