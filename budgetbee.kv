@@ -93,7 +93,7 @@
                 group: "type"
         Button:
             text: "Save Category"
-            on_release: root.add_category(name.text)
+            on_release: root.add_category(name.text, "Income" if income_btn.state == "down" else "Expense")
         Button:
             text: "Back"
             on_release: app.root.current = "categories"

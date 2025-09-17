@@ -42,7 +42,8 @@ def init_db():
             CREATE TABLE IF NOT EXISTS categories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
-                type TEXT
+                type TEXT,
+                is_active INTEGER DEFAULT 1
             )
         """)
         conn.commit()
@@ -248,7 +249,7 @@ class CategoriesScreen(Screen):
         """Fetch categories and populate the UI, excluding System"""
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT id, name, type FROM categories WHERE name != 'System'")
+            c.execute("SELECT id, name, type FROM categories WHERE name != 'System' AND is_active = 1")
             self.categories = c.fetchall()
 
         # Update the UI
@@ -282,31 +283,37 @@ class CategoriesScreen(Screen):
     def delete_category(self, cat_id):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("DELETE FROM categories WHERE id=?", (cat_id,))
+            c.execute("UPDATE categories SET is_active=0 WHERE id=?", (cat_id,))
             conn.commit()
-        # Refresh the screen
-        self.on_pre_enter()
+            self.on_pre_enter()
 
 class AddCategoryScreen(Screen):
-    def add_category(self, name):
-        type = None
-        if self.ids.income_btn.state == "down":
-            type = "Income"
-        elif self.ids.expense_btn.state == "down":
-            type = "Expense"
-
-        if not name or not type:
-            return  # simple validation
-
+    def add_category(self, name, type):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("""
-                INSERT INTO categories (name, type)
-                VALUES (?, ?)
-            """, (name, type))
-            conn.commit()
+            # Check if category exists
+            c.execute("SELECT id, is_active FROM categories WHERE name=?", (name,))
+            row = c.fetchone()
 
-        self.manager.current = "categories"
+            if row:
+                cat_id, is_active = row
+                if is_active == 0:
+                    # Reactivate
+                    c.execute("UPDATE categories SET is_active=1, type=? WHERE id=?", 
+                            (type, cat_id))
+                    conn.commit()
+                    self.manager.current = "categories"
+                    return cat_id
+                else:
+                    # Already exists and active
+                    return None  
+            else:
+                # Create new
+                c.execute("INSERT INTO categories (name, type, is_active) VALUES (?, ?, 1)", 
+                        (name, type))
+                conn.commit()
+                self.manager.current = "categories"
+                return c.lastrowid
 
 # -----------------------------
 # Transactions screens
@@ -401,7 +408,7 @@ class AddTransactionScreen(Screen):
         c = conn.cursor()
         c.execute("SELECT name FROM accounts WHERE is_active = 1")
         accounts = [row[0] for row in c.fetchall()]
-        c.execute("SELECT name, type FROM categories WHERE name != 'System'")
+        c.execute("SELECT name, type FROM categories WHERE name != 'System' AND is_active = 1")
         categories = [f"{row[0]} - ({row[1]})" for row in c.fetchall()]
 
         conn.close()
