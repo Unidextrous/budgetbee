@@ -18,6 +18,9 @@
         Button:
             text: "Transactions"
             on_release: app.root.current = "transactions"
+        Button:
+            text: "Budgets"
+            on_release: app.root.current = "budgets"
 
 <AccountsScreen>:
     BoxLayout:
@@ -145,3 +148,158 @@
         Button:
             text: "Back"
             on_release: app.root.current = "transactions"
+
+<BudgetsScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        Label:
+            text: "Budgets"
+            font_size: 28
+        ScrollView:
+            GridLayout:
+                id: budgets_list
+                cols: 1
+                size_hint_y: None
+        Button:
+            text: "Add Budget"
+            on_release: app.root.current = "add_budget"
+        Button:
+            text: "Back"
+            on_release: app.root.current = "dashboard"
+
+<AddBudgetScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        TextInput:
+            id: budget_name
+            hint_text: "Budget Name"
+        TextInput:
+            id: start_date
+            hint_text: "Start Date (YYYY-MM-DD, optional)"
+        Spinner:
+            id: type_spinner
+            text: "Paycheck"
+            values: ["Paycheck", "Monthly", "Yearly"]
+        Button:
+            text: "Save Budget"
+            on_release: root.add_budget(budget_name.text, start_date.text, type_spinner.text)
+        Button:
+            text: "Back"
+            on_release: app.root.current = "budgets"
+
+<BudgetSummaryScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        padding: 10
+        spacing: 10
+
+        Label:
+            text: "Budget Summary"
+            font_size: 28
+
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: 30
+            spacing: 10
+            Label:
+                id: allocated_label
+                text: ""
+                size_hint_y: None
+                height: 30
+            Label:
+                id: spent_label
+                text: ""
+                size_hint_y: None
+                height: 30
+            Label:
+                id: projected_label
+                text: ""
+                size_hint_y: None
+                height: 30
+            Label:
+                id: remaining_label
+                text: ""
+                size_hint_y: None
+                height: 30
+
+        # ------------------------------
+        # Add Allocated Category Section
+        # ------------------------------
+        Label:
+            text: "Add Allocated Category"
+            font_size: 22
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: 40
+            spacing: 5
+            Spinner:
+                id: alloc_category_spinner
+                text: "Select Category"
+                values: []
+            TextInput:
+                id: alloc_amount
+                hint_text: "Amount"
+                input_filter: "float"
+            Button:
+                text: "Add"
+                size_hint_x: None
+                width: 80
+                on_release: root.add_budgeted_category(alloc_category_spinner.text, alloc_amount.text)
+
+        Label:
+            text: "Allocated Categories"
+            font_size: 22
+        ScrollView:
+            GridLayout:
+                id: allocated_list
+                cols: 1
+                size_hint_y: None
+
+        # ------------------------------
+        # Add Projected Transaction Section
+        # ------------------------------
+        Label:
+            text: "Add Projected Transaction"
+            font_size: 22
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: 40
+            spacing: 5
+            Spinner:
+                id: proj_account_spinner
+                text: "Select Account"
+                values: []
+            Spinner:
+                id: proj_category_spinner
+                text: "Select Category"
+                values: []
+            TextInput:
+                id: proj_amount
+                hint_text: "Amount"
+                input_filter: "float"
+            TextInput:
+                id: proj_date
+                hint_text: "Date (YYYY-MM-DD)"
+            Button:
+                text: "Add"
+                size_hint_x: None
+                width: 80
+                on_release: root.add_projected_transaction(proj_account_spinner.text, proj_category_spinner.text, proj_amount.text, proj_date.text)
+
+        Label:
+            text: "Projected Transactions"
+            font_size: 22
+        ScrollView:
+            GridLayout:
+                id: projected_list
+                cols: 1
+                size_hint_y: None
+
+        Button:
+            text: "Back"
+            size_hint_y: None
+            height: 40
+            on_release: app.root.current = "budgets"

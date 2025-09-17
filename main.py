@@ -63,14 +63,56 @@ def init_db():
             CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 account_id INTEGER NOT NULL,
-                category_id TEXT NOT NULL,
+                category_id INTEGER NOT NULL,
                 amount REAL NOT NULL,
                 date TEXT NOT NULL,
                 description TEXT,
-                FOREIGN KEY(account_id) REFERENCES accounts(id)
+                projected INTEGER DEFAULT 0,
+                FOREIGN KEY(account_id) REFERENCES accounts(id),
                 FOREIGN KEY(category_id) REFERENCES categories(id)
             )
         """)
+
+    # Budgets table
+    with sqlite3.connect(DB_NAME) as conn:
+        c = conn.cursor()
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS budgets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                start_date TEXT NOT NULL,
+                end_date TEXT,          -- Optional; can be null if paycheck-to-paycheck
+                type TEXT               -- "paycheck", "monthly", "yearly"
+            )
+        """)
+
+    # Budgeted categories table
+    with sqlite3.connect(DB_NAME) as conn:
+        c = conn.cursor()
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS budgeted_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                budget_id INTEGER NOT NULL,
+                category_id INTEGER NOT NULL,
+                allocated_amount REAL NOT NULL,
+                FOREIGN KEY(budget_id) REFERENCES budgets(id),
+                FOREIGN KEY(category_id) REFERENCES categories(id)
+            )
+        """)
+
+    # Budget transactions table
+    with sqlite3.connect(DB_NAME) as conn:
+        c = conn.cursor()
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS budget_transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                budget_id INTEGER NOT NULL,
+                transaction_id INTEGER NOT NULL,
+                FOREIGN KEY(budget_id) REFERENCES budgets(id),
+                FOREIGN KEY(transaction_id) REFERENCES transactions(id)
+            )
+        """)
+
         conn.commit()
 
 # -----------------------------
@@ -220,8 +262,6 @@ class AddAccountScreen(Screen):
                         balance, f'Reactivated {name}')
                     )
                     conn.commit()
-                    self.manager.current = "accounts"
-                    return True, "Account reactivated successfully."
             else:
                 # New account
                 c.execute(
@@ -239,8 +279,6 @@ class AddAccountScreen(Screen):
                     (account_id, get_system_category_id(), balance, f'Added {name}')
                 )
                 conn.commit()
-                self.manager.current = "accounts"
-                return True, "Account added successfully."
     
         self.manager.current = "accounts"
 
@@ -488,6 +526,424 @@ class AddTransactionScreen(Screen):
         # Go back to transactions screen
         self.manager.current = "transactions"
 
+import sqlite3
+
+DB_NAME = "budgetbee.db"
+
+class BudgetManager:
+    def __init__(self, db_name=DB_NAME):
+        self.db_name = db_name
+
+    # -----------------------------
+    # Budget Creation
+    # -----------------------------
+    def create_budget(self, name, start_date, end_date=None, type="paycheck"):
+        """Create a new budget and return its ID"""
+        with sqlite3.connect(self.db_name) as conn:
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO budgets (name, start_date, end_date, type)
+                VALUES (?, ?, ?, ?)
+            """, (name, start_date, end_date, type))
+            conn.commit()
+            return c.lastrowid
+
+    # -----------------------------
+    # Allocated Categories
+    # -----------------------------
+    def add_budgeted_category(self, category_name, amount):
+        if not category_name or not amount:
+            return
+
+        try:
+            amount = float(amount)
+        except ValueError:
+            return
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            # Get category ID
+            c.execute("SELECT id FROM categories WHERE name=?", (category_name,))
+            row = c.fetchone()
+            if not row:
+                return
+            category_id = row[0]
+
+            # Check if allocation exists
+            c.execute("""
+                SELECT id FROM budgeted_categories
+                WHERE budget_id=? AND category_id=?
+            """, (self.budget_id, category_id))
+            existing = c.fetchone()
+
+            if existing:
+                # Update existing allocation
+                c.execute("""
+                    UPDATE budgeted_categories
+                    SET allocated_amount=allocated_amount + ?
+                    WHERE id=?
+                """, (amount, existing[0]))
+            else:
+                # Insert new
+                c.execute("""
+                    INSERT INTO budgeted_categories (budget_id, category_id, allocated_amount)
+                    VALUES (?, ?, ?)
+                """, (self.budget_id, category_id, amount))
+            conn.commit()
+
+        self.load_allocated_categories()
+        self.update_summary_labels()
+
+    def get_allocated_categories(self, budget_id):
+        """Return list of tuples (id, category_name, amount)"""
+        with sqlite3.connect(self.db_name) as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT bc.id, c.name, bc.allocated_amount
+                FROM budgeted_categories bc
+                JOIN categories c ON bc.category_id = c.id
+                WHERE bc.budget_id=?
+            """, (budget_id,))
+            return c.fetchall()
+
+    # -----------------------------
+    # Projected Transactions
+    # -----------------------------
+    def add_projected_transaction(self, account_name, category_name, amount, date):
+        if not account_name or not category_name or not amount:
+            return
+
+        try:
+            amount = float(amount)
+        except ValueError:
+            return
+
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            # Get account ID
+            c.execute("SELECT id FROM accounts WHERE name=?", (account_name,))
+            row = c.fetchone()
+            if not row:
+                return
+            account_id = row[0]
+
+            # Get category ID
+            c.execute("SELECT id FROM categories WHERE name=?", (category_name,))
+            row = c.fetchone()
+            if not row:
+                return
+            category_id = row[0]
+
+            # Insert projected transaction
+            c.execute("""
+                INSERT INTO transactions (account_id, category_id, amount, date, projected)
+                VALUES (?, ?, ?, ?, 1)
+            """, (account_id, category_id, amount, date))
+            txn_id = c.lastrowid
+
+            # Link to budget
+            c.execute("INSERT INTO budget_transactions (budget_id, transaction_id) VALUES (?, ?)",
+                    (self.budget_id, txn_id))
+            conn.commit()
+
+        self.load_projected_transactions()
+        self.update_summary_labels()
+
+    def get_projected_transactions(self, budget_id):
+        """Return list of projected transactions for a budget"""
+        with sqlite3.connect(self.db_name) as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT t.id, a.name, c.name, t.amount, t.date
+                FROM transactions t
+                JOIN accounts a ON t.account_id = a.id
+                JOIN categories c ON t.category_id = c.id
+                JOIN budget_transactions bt ON t.id = bt.transaction_id
+                WHERE bt.budget_id=? AND t.projected=1
+            """, (budget_id,))
+            return c.fetchall()
+
+    # -----------------------------
+    # Budget Summary
+    # -----------------------------
+    def get_budget_summary(self, budget_id):
+        """Return a dict with totals: allocated, spent, projected, remaining"""
+        with sqlite3.connect(self.db_name) as conn:
+            c = conn.cursor()
+
+            # Total allocated
+            c.execute("SELECT SUM(allocated_amount) FROM budgeted_categories WHERE budget_id=?", (budget_id,))
+            allocated = c.fetchone()[0] or 0
+
+            # Total spent (non-projected)
+            c.execute("""
+                SELECT SUM(t.amount) FROM transactions t
+                JOIN budget_transactions bt ON t.id = bt.transaction_id
+                WHERE bt.budget_id=? AND t.projected=0
+            """, (budget_id,))
+            spent = c.fetchone()[0] or 0
+
+            # Total projected
+            c.execute("""
+                SELECT SUM(t.amount) FROM transactions t
+                JOIN budget_transactions bt ON t.id = bt.transaction_id
+                WHERE bt.budget_id=? AND t.projected=1
+            """, (budget_id,))
+            projected = c.fetchone()[0] or 0
+
+        remaining = allocated - spent - projected
+        return {
+            "allocated": allocated,
+            "spent": spent,
+            "projected": projected,
+            "remaining": remaining
+        }
+
+# -----------------------------
+# Budget Screens
+# -----------------------------
+class BudgetsScreen(Screen):
+    budgets = ListProperty([])
+
+    def on_pre_enter(self):
+        """Load all budgets from DB"""
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("SELECT id, name, start_date, end_date, type FROM budgets ORDER BY start_date DESC")
+            self.budgets = c.fetchall()
+
+        # Update UI list
+        self.ids.budgets_list.clear_widgets()
+        for b in self.budgets:
+            box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
+            label = Label(
+                text=f"{b[1]} | {b[2]} → {b[3] or '…'} | {b[4].capitalize()}",
+                halign="center",
+                valign="middle"
+            )
+            label.bind(size=label.setter("text_size"))
+
+            view_btn = Button(text="View", size_hint_x=None, width=80)
+            view_btn.bind(on_release=lambda btn, budget_id=b[0]: self.view_budget(budget_id))
+
+            box.add_widget(label)
+            box.add_widget(view_btn)
+            self.ids.budgets_list.add_widget(box)
+
+        self.ids.budgets_list.bind(minimum_height=self.ids.budgets_list.setter('height'))
+
+    def view_budget(self, budget_id):
+        self.manager.current = "budget_summary"
+        self.manager.get_screen("budget_summary").load_budget(budget_id)
+
+
+class AddBudgetScreen(Screen):
+    def on_pre_enter(self):
+        """Reset fields"""
+        self.ids.budget_name.text = ""
+        self.ids.start_date.text = datetime.now().strftime("%Y-%m-%d")
+        self.ids.type_spinner.text = "Paycheck"  # default type
+
+    def add_budget(self, name, start_date, budget_type):
+        if not name:
+            return
+
+        if not start_date:
+            start_date = datetime.now().strftime("%Y-%m-%d")
+
+        try:
+            datetime.strptime(start_date, "%Y-%m-%d")
+        except ValueError:
+            return
+
+        budget_manager = BudgetManager()
+        budget_id = budget_manager.create_budget(name, start_date, type=budget_type.lower())
+
+        # Navigate to summary to allocate categories
+        self.manager.current = "budget_summary"
+        self.manager.get_screen("budget_summary").load_budget(budget_id)
+
+
+class BudgetSummaryScreen(Screen):
+    budget_id = None
+    allocated_categories = ListProperty([])
+    projected_transactions = ListProperty([])
+
+    def load_budget(self, budget_id):
+        self.budget_id = budget_id
+        self.load_allocated_categories()
+        self.load_projected_transactions()
+        self.update_summary_labels()
+
+        # Populate spinners
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("SELECT name FROM categories WHERE type = 'Expense' AND name != 'System' AND is_active=1")
+            self.ids.alloc_category_spinner.values = [row[0] for row in c.fetchall()]
+
+            c.execute("SELECT name FROM accounts WHERE is_active=1")
+            self.ids.proj_account_spinner.values = [row[0] for row in c.fetchall()]
+
+            c.execute("SELECT name FROM categories WHERE type = 'Expense' AND name != 'System' AND is_active=1")
+            self.ids.proj_category_spinner.values = [row[0] for row in c.fetchall()]
+
+    def load_allocated_categories(self):
+        """Load budgeted categories"""
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT bc.id, c.name, bc.allocated_amount
+                FROM budgeted_categories bc
+                JOIN categories c ON bc.category_id = c.id
+                WHERE bc.budget_id=?
+            """, (self.budget_id,))
+            self.allocated_categories = c.fetchall()
+
+        self.ids.allocated_list.clear_widgets()
+        for bc in self.allocated_categories:
+            box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
+            label = Label(text=f"{bc[1]} | ${bc[2]:.2f}", halign="center", valign="middle")
+            label.bind(size=label.setter("text_size"))
+
+            delete_btn = Button(text="X", size_hint_x=None, width=40)
+            delete_btn.bind(on_release=lambda btn, bc_id=bc[0]: self.delete_allocated_category(bc_id))
+
+            box.add_widget(label)
+            box.add_widget(delete_btn)
+            self.ids.allocated_list.add_widget(box)
+
+        self.ids.allocated_list.bind(minimum_height=self.ids.allocated_list.setter('height'))
+
+    def load_projected_transactions(self):
+        """Load projected transactions for this budget"""
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT t.id, a.name, c.name, t.amount, t.date
+                FROM transactions t
+                JOIN accounts a ON t.account_id = a.id
+                JOIN categories c ON t.category_id = c.id
+                JOIN budget_transactions bt ON t.id = bt.transaction_id
+                WHERE bt.budget_id=? AND t.projected=1
+            """, (self.budget_id,))
+            self.projected_transactions = c.fetchall()
+
+        self.ids.projected_list.clear_widgets()
+        for txn in self.projected_transactions:
+            box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
+            label = Label(text=f"{txn[1]} | {txn[2]} | ${txn[3]:.2f} | {txn[4]}", halign="center", valign="middle")
+            label.bind(size=label.setter("text_size"))
+
+            delete_btn = Button(text="X", size_hint_x=None, width=40)
+            delete_btn.bind(on_release=lambda btn, txn_id=txn[0]: self.delete_projected_transaction(txn_id))
+
+            box.add_widget(label)
+            box.add_widget(delete_btn)
+            self.ids.projected_list.add_widget(box)
+
+        self.ids.projected_list.bind(minimum_height=self.ids.projected_list.setter('height'))
+
+    def delete_allocated_category(self, bc_id):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM budgeted_categories WHERE id=?", (bc_id,))
+            conn.commit()
+        self.load_allocated_categories()
+        self.update_summary_labels()
+
+    def delete_projected_transaction(self, txn_id):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM transactions WHERE id=?", (txn_id,))
+            c.execute("DELETE FROM budget_transactions WHERE transaction_id=?", (txn_id,))
+            conn.commit()
+        self.load_projected_transactions()
+        self.update_summary_labels()
+
+    def add_budgeted_category(self, category_name, amount):
+        if not category_name or not amount:
+            return
+
+        try:
+            amount = float(amount)
+        except ValueError:
+            return
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("SELECT id FROM categories WHERE name=?", (category_name,))
+            row = c.fetchone()
+            if not row:
+                return
+            category_id = row[0]
+
+            c.execute("""
+                INSERT INTO budgeted_categories (budget_id, category_id, allocated_amount)
+                VALUES (?, ?, ?)
+            """, (self.budget_id, category_id, amount))
+            conn.commit()
+
+        self.load_allocated_categories()
+        self.update_summary_labels()
+
+    def add_projected_transaction(self, account_name, category_name, amount, date):
+        if not account_name or not category_name or not amount:
+            return
+
+        try:
+            amount = float(amount)
+        except ValueError:
+            return
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            # Get account ID
+            c.execute("SELECT id FROM accounts WHERE name=?", (account_name,))
+            row = c.fetchone()
+            if not row:
+                return
+            account_id = row[0]
+
+            # Get category ID
+            c.execute("SELECT id FROM categories WHERE name=?", (category_name,))
+            row = c.fetchone()
+            if not row:
+                return
+            category_id = row[0]
+
+            # Insert projected transaction
+            c.execute("""
+                INSERT INTO transactions (account_id, category_id, amount, date, projected)
+                VALUES (?, ?, ?, ?, 1)
+            """, (account_id, category_id, amount, date))
+            txn_id = c.lastrowid
+
+            c.execute("INSERT INTO budget_transactions (budget_id, transaction_id) VALUES (?, ?)",
+                      (self.budget_id, txn_id))
+            conn.commit()
+
+        self.load_projected_transactions()
+        self.update_summary_labels()
+
+    def update_summary_labels(self):
+        """Calculate totals for display"""
+        manager = BudgetManager()
+        summary = manager.get_budget_summary(self.budget_id)
+
+        self.ids.allocated_label.text = ""
+        self.ids.projected_label.text = ""
+        self.ids.spent_label.text = ""
+        self.ids.remaining_label.text = ""
+
+        # Update with new values
+        self.ids.allocated_label.text = f"Allocated: ${summary['allocated']:.2f}"
+        self.ids.projected_label.text = f"Projected: ${summary['projected']:.2f}"
+        self.ids.spent_label.text = f"Spent: ${summary['spent']:.2f}"
+        self.ids.remaining_label.text = f"Remaining: ${summary['remaining']:.2f}"
+
 # -----------------------------
 # App entry point
 # -----------------------------
@@ -504,6 +960,9 @@ class BudgetBeeApp(App):
         sm.add_widget(AddCategoryScreen(name="add_category"))
         sm.add_widget(TransactionsScreen(name="transactions"))
         sm.add_widget(AddTransactionScreen(name="add_transaction"))
+        sm.add_widget(BudgetsScreen(name="budgets"))
+        sm.add_widget(BudgetSummaryScreen(name="budget_summary"))
+        sm.add_widget(AddBudgetScreen(name="add_budget"))
         return sm
 
 
