@@ -7,9 +7,8 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.label import Label
-from kivy.uix.dropdown import ObjectProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
-from kivy.properties import StringProperty, ListProperty
+from kivy.properties import StringProperty, ListProperty, ObjectProperty
 from kivy.lang import Builder
 
 # Load the Kivy KV layout file
@@ -542,17 +541,22 @@ class AddTransactionScreen(Screen):
     def link_transaction_to_budgets(self, txn_id, txn_date):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
+            # Find the most recent budget that started before txn_date
             c.execute("""
-                SELECT id FROM budgets
-                WHERE start_date <= ? AND (end_date >= ? OR end_date IS NULL)
-            """, (txn_date, txn_date))
-            budget_ids = [row[0] for row in c.fetchall()]
-
-            for budget_id in budget_ids:
-                c.execute("""
-                    INSERT OR IGNORE INTO budget_transactions (budget_id, transaction_id)
-                    VALUES (?, ?)
-                """, (budget_id, txn_id))
+                SELECT id, start_date, end_date FROM budgets
+                WHERE start_date <= ?
+                ORDER BY start_date DESC
+                LIMIT 1
+            """, (txn_date,))
+            row = c.fetchone()
+            if row:
+                budget_id, start_date, end_date = row
+                # Only link if txn_date <= end_date or end_date is None
+                if end_date is None or txn_date <= end_date:
+                    c.execute("""
+                        INSERT OR IGNORE INTO budget_transactions (budget_id, transaction_id)
+                        VALUES (?, ?)
+                    """, (budget_id, txn_id))
             conn.commit()
 
 import sqlite3
@@ -713,7 +717,11 @@ class BudgetManager:
                 JOIN budget_transactions bt ON t.id = bt.transaction_id
                 WHERE bt.budget_id=? AND t.projected=0 AND amount<0
             """, (budget_id,))
-            spent = -c.fetchone()[0] or 0
+            if c.fetchone()[0] == None:
+                spent = 0
+            else:
+                spent = -c.fetchone()[0]
+
 
             # Total projected (only pending)
             c.execute("""
@@ -786,21 +794,34 @@ class AddBudgetScreen(Screen):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
 
-            # 1️⃣ Insert the new budget
+            # Update previous budget's end date (if it exists)
+            c.execute("""
+                SELECT id, start_date FROM budgets
+                WHERE end_date IS NULL
+                ORDER BY start_date DESC
+                LIMIT 1
+            """)
+            prev_budget = c.fetchone()
+            if prev_budget:
+                prev_id, prev_start = prev_budget
+                prev_end_date = (datetime.strptime(start_date, "%Y-%m-%d") - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+                c.execute("UPDATE budgets SET end_date=? WHERE id=?", (prev_end_date, prev_id))
+
+            # Insert the new budget
             c.execute("""
                 INSERT INTO budgets (name, start_date, end_date)
                 VALUES (?, ?, ?)
             """, (name, start_date, end_date))
             budget_id = c.lastrowid
 
-            # 2️⃣ Find all transactions within the budget period
+            # Find all transactions within the budget period
             c.execute("""
                 SELECT id FROM transactions
                 WHERE date >= ? AND (date <= ? OR ? IS NULL)
             """, (start_date, end_date, end_date))
             txn_ids = [row[0] for row in c.fetchall()]
 
-            # 3️⃣ Link transactions to the budget
+            # Link transactions to the budget
             for txn_id in txn_ids:
                 c.execute("""
                     INSERT OR IGNORE INTO budget_transactions (budget_id, transaction_id)
