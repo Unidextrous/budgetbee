@@ -30,6 +30,7 @@ def init_db():
                 owner TEXT NOT NULL,
                 name TEXT NOT NULL UNIQUE,
                 balance REAL NOT NULL,
+                starting_balance REAL NOT NULL,
                 is_active INTEGER DEFAULT 1
             )
         """)
@@ -147,6 +148,8 @@ class AccountsScreen(Screen):
                 ORDER BY owner ASC, name ASC
             """)
             self.accounts = c.fetchall()
+            if self.accounts:
+                self.acct_id = self.accounts[0][0]
 
         # Update the UI list
         self.ids.accts_list.clear_widgets()
@@ -154,28 +157,30 @@ class AccountsScreen(Screen):
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
 
             # Display account info
-            label = Label(
-                text=f"{acct[1]} | {acct[2]} | {acct[3]:.2f}",
-                halign="center",
-                valign="middle"
-            )
+            label = Label(text=f"{acct[1]} | {acct[2]} | {acct[3]:.2f}", halign="center", valign="middle")
             label.bind(size=label.setter("text_size"))
 
+            # Edit button
+            edit_btn = Button(text="Edit", size_hint_x=None)
+            edit_btn.bind(on_release=lambda btn: self.edit_account(self.acct_id))
+
             # Delete button
-            delete_btn = Button(
-                text="X",
-                size_hint_x=None,
-                width=40
-            )
+            delete_btn = Button(text="X", size_hint_x=None, width=40)
             delete_btn.bind(on_release=lambda btn, acct_id=acct[0]: self.delete_account(acct_id))
 
             box.add_widget(label)
+            box.add_widget(edit_btn)
             box.add_widget(delete_btn)
 
             self.ids.accts_list.add_widget(box)
         
         # Make list height adjust to number of items
         self.ids.accts_list.bind(minimum_height=self.ids.accts_list.setter('height'))
+
+    def edit_account(self, acct_id):
+        edit_screen = self.manager.get_screen("edit_account")
+        edit_screen.load_account(self.acct_id)
+        self.manager.current = "edit_account"
 
     def delete_account(self, acct_id):
         # Make list height adjust to number of items
@@ -257,8 +262,8 @@ class AddAccountScreen(Screen):
             else:
                 # New account
                 c.execute(
-                    "INSERT INTO accounts (owner, name, balance, is_active) VALUES (?, ?, ?, 1)",
-                    (owner, name, balance)
+                    "INSERT INTO accounts (owner, name, balance, starting_balance, is_active) VALUES (?, ?, ?, ?, 1)",
+                    (owner, name, balance, balance)
                 )
                 account_id = c.lastrowid
 
@@ -272,6 +277,79 @@ class AddAccountScreen(Screen):
                 )
                 conn.commit()
     
+        self.manager.current = "accounts"
+
+class EditAccountScreen(Screen):
+    def load_account(self, acct_id):
+        self.acct_id = acct_id
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("SELECT owner, name, balance FROM accounts WHERE id=?", (acct_id,))
+            row = c.fetchone()
+            if row:
+                self.ids.owner.text = row[0]
+                self.ids.name.text = row[1]
+                self.ids.balance.text = str(row[2])
+
+    def save_account(self):
+        new_owner = self.ids.owner.text
+        new_name = self.ids.name.text
+        new_balance = float(self.ids.balance.text)
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+
+            # Get old account name
+            c.execute("SELECT name, balance, starting_balance FROM accounts WHERE id=?", (self.acct_id,))
+
+            row = c.fetchone()
+            
+            old_name = row[0]
+            old_balance = row[1]
+            old_starting_balance = row[2]
+
+            if not new_owner or not new_name or not new_balance:
+                return
+            
+            c.execute("""
+                UPDATE accounts
+                SET owner=?, name=?, balance=?
+                WHERE id=?
+                """, (new_owner, new_name, new_balance, self.acct_id)
+            )
+
+            # If the name changed, update system transactions
+            if old_name != new_name:
+                c.execute("""
+                    UPDATE transactions
+                    SET description = REPLACE(description, ?, ?)
+                    WHERE account_id=? AND description LIKE ?""",
+                    (old_name, new_name, self.acct_id, f'%{old_name}%')
+                )
+
+            if old_balance != new_balance:
+                balance_diff = new_balance - old_balance
+                new_starting_balance = old_starting_balance + balance_diff
+                
+                c.execute("""
+                    UPDATE accounts
+                    SET balance = ?, starting_balance = ?
+                    WHERE id=?""",
+                    (new_balance, new_starting_balance, self.acct_id)
+                )
+
+                c.execute("""
+                    UPDATE transactions
+                    SET amount = REPLACE(amount, ?, ?)
+                    WHERE account_id=? AND amount LIKE ?""",
+                    (old_starting_balance, new_starting_balance, self.acct_id, f"%{old_starting_balance}%")
+                )
+                
+            conn.commit()
+
+        # Go back to summary view
+        summary_screen = self.manager.get_screen("accounts")
+        summary_screen.acct_id = self.acct_id
         self.manager.current = "accounts"
 
 # -----------------------------
@@ -1218,6 +1296,7 @@ class BudgetBeeApp(App):
         sm.add_widget(DashboardScreen(name="dashboard"))
         sm.add_widget(AccountsScreen(name="accounts"))
         sm.add_widget(AddAccountScreen(name="add_account"))
+        sm.add_widget(EditAccountScreen(name="edit_account"))
         sm.add_widget(CategoriesScreen(name="categories"))
         sm.add_widget(AddCategoryScreen(name="add_category"))
         sm.add_widget(TransactionsScreen(name="transactions"))

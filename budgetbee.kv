@@ -60,6 +60,26 @@
             text: "Back"
             on_release: app.root.current = "accounts"
 
+<EditAccountScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        TextInput:
+            id: owner
+            hint_text: "Account Owner"
+        TextInput:
+            id: name
+            hint_text: "Account Name"
+        TextInput:
+            id: balance
+            hint_text: "Balance"
+            input_filter: "float"
+        Button:
+            text: "Save Account"
+            on_release: root.save_account()
+        Button:
+            text: "Back"
+            on_release: app.root.current = "accounts"
+        
 <CategoriesScreen>:
     BoxLayout:
         orientation: "vertical"
