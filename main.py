@@ -787,7 +787,7 @@ class BudgetsScreen(Screen):
 
             view_btn = Button(text="View", size_hint_x=None, width=80)
             view_btn.bind(on_release=lambda btn, budget_id=b[0]: self.view_budget(budget_id))
-            delete_btn = Button(text="X", size_hint_x=0.1)
+            delete_btn = Button(text="X", size_hint_x=None, width=40)
             delete_btn.bind(on_release=lambda btn, bid=b[0]: self.delete_budget(bid))
 
             box.add_widget(label)
@@ -941,7 +941,7 @@ class BudgetSummaryScreen(Screen):
                 skipped_btn.bind(on_release=lambda btn, pid=proj_id: self.update_projected_status(pid, "Skipped"))
                 row.add_widget(skipped_btn)
 
-                delete_btn = Button(text="X", size_hint_x=0.1)
+                delete_btn = Button(text="X", size_hint_x=0.1, width=40)
                 delete_btn.bind(on_release=lambda btn, pid=proj_id: self.delete_projected_transaction(pid))
                 row.add_widget(delete_btn)
 
@@ -1057,7 +1057,7 @@ class BudgetSummaryScreen(Screen):
             delete_btn = Button(
                 text="X",
                 size_hint_x=None,
-                width=50,
+                width=40,
                 height=40,
                 font_size=16
             )
