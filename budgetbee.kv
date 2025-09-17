@@ -121,6 +121,29 @@
             text: "Back"
             on_release: app.root.current = "categories"
 
+<EditCategoryScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        TextInput:
+            id: name
+            hint_text: "Category Name"
+        BoxLayout:
+            orientation: "horizontal"
+            ToggleButton:
+                id: income_btn
+                text: "Income"
+                group: "type"
+            ToggleButton:
+                id: expense_btn
+                text: "Expense"
+                group: "type"
+        Button:
+            text: "Save Category"
+            on_release: root.save_category()
+        Button:
+            text: "Back"
+            on_release: app.root.current = "categories"
+
 <TransactionsScreen>:
     BoxLayout:
         orientation: "vertical"

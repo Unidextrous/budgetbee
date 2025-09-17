@@ -372,30 +372,34 @@ class CategoriesScreen(Screen):
         # Update the UI
         self.ids.cats_list.clear_widgets()
         for cat in self.categories:
+            self.category_id = cat[0]
+
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
 
-            label = Label(
-                text=f"{cat[1]} | {cat[2]}",
-                halign="center",
-                valign="middle"
-            )
+            label = Label(text=f"{cat[1]} | {cat[2]}", halign="center", valign="middle")
             label.bind(size=label.setter("text_size"))
 
+            # Edit button
+            edit_btn = Button(text="Edit", size_hint_x=None)
+            edit_btn.bind(on_release=lambda btn: self.edit_category(self.category_id))
+
             # Delete button
-            delete_btn = Button(
-                text="X",
-                size_hint_x=None,
-                width=40
-            )
+            delete_btn = Button(text="X", size_hint_x=None,width=40)
             delete_btn.bind(on_release=lambda btn, cat_id=cat[0]: self.delete_category(cat_id))
 
             box.add_widget(label)
+            box.add_widget(edit_btn)
             box.add_widget(delete_btn)
 
             self.ids.cats_list.add_widget(box)
         
         # **Bind height to children**
         self.ids.cats_list.bind(minimum_height=self.ids.cats_list.setter('height'))
+
+    def edit_category(self, category_id):
+        edit_screen = self.manager.get_screen("edit_category")
+        edit_screen.load_category(self.category_id)
+        self.manager.current = "edit_category"
 
     def delete_category(self, cat_id):
         with sqlite3.connect(DB_NAME) as conn:
@@ -439,6 +443,81 @@ class AddCategoryScreen(Screen):
                 conn.commit()
                 self.manager.current = "categories"
                 return c.lastrowid
+
+class EditCategoryScreen(Screen):
+    def load_category(self, category_id):
+        self.category_id = category_id
+        with sqlite3.connect(DB_NAME)as conn:
+            c = conn.cursor()
+            c.execute("SELECT name, type FROM categories WHERE id=?", (self.category_id,))
+            row = c.fetchone()
+            if row:
+                self.ids.name.text = row[0]
+                if row[1] == "Income":
+                    self.ids.income_btn.state = "down"
+                    self.ids.expense_btn.state = "normal"
+                else:
+                    self.ids.income_btn.state = "normal"
+                    self.ids.expense_btn.state = "down"
+    
+    def save_category(self):
+        new_name = self.ids.name.text
+        new_type = "Income" if self.ids.income_btn.state == "down" else "Expense"
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+
+            # Get old category
+            c.execute("SELECT name, type FROM categories WHERE id=?", (self.category_id,))
+            row = c.fetchone()
+
+            old_name = row[0]
+            old_type = row[1]
+
+            if not new_name or not new_type:
+                return
+            
+            c.execute("""
+                UPDATE categories
+                SET name=?, type=?
+                WHERE id=?""",
+                (new_name, new_type, self.category_id))
+            
+            c.execute("""
+                UPDATE categories
+                SET name=?, type=?
+                WHERE id=?""",
+                (new_name, new_type, self.category_id)
+            )
+
+            if old_type != new_type:
+                c.execute("""
+                    UPDATE transactions
+                    SET amount=-amount
+                    WHERE category_id=?""",
+                    (self.category_id,))
+
+                # Recalculate account balances
+                c.execute("SELECT DISTINCT account_id FROM transactions WHERE category_id=?", (self.category_id,))
+                account_ids = [row[0] for row in c.fetchall()]
+
+                for acct_id in account_ids:
+                    # Recalculate balance as starting_balance + sum(transactions)
+                    c.execute("SELECT starting_balance FROM accounts WHERE id=?", (acct_id,))
+                    starting_balance = c.fetchone()[0]
+
+                    c.execute("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id=?", (acct_id,))
+                    total_transactions = c.fetchone()[0]
+
+                    new_balance = starting_balance + total_transactions
+
+                    c.execute("UPDATE accounts SET balance=? WHERE id=?", (new_balance, acct_id))
+
+            conn.commit()
+        
+        categories_screen = self.manager.get_screen("categories")
+        categories_screen.category_id = self.category_id
+        self.manager.current = "categories"
 
 # -----------------------------
 # Transactions screens
@@ -1299,6 +1378,7 @@ class BudgetBeeApp(App):
         sm.add_widget(EditAccountScreen(name="edit_account"))
         sm.add_widget(CategoriesScreen(name="categories"))
         sm.add_widget(AddCategoryScreen(name="add_category"))
+        sm.add_widget(EditCategoryScreen(name="edit_category"))
         sm.add_widget(TransactionsScreen(name="transactions"))
         sm.add_widget(AddTransactionScreen(name="add_transaction"))
         sm.add_widget(BudgetsScreen(name="budgets"))
