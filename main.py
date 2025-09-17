@@ -21,9 +21,10 @@ DB_NAME = "budgetbee.db"
 # Database file name
 def init_db():
     """Initialize the database tables for accounts, categories, and transactions"""
-    # Accounts table
     with sqlite3.connect(DB_NAME) as conn:
         c = conn.cursor()
+
+        # Accounts table
         c.execute("""
             CREATE TABLE IF NOT EXISTS accounts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,11 +34,8 @@ def init_db():
                 is_active INTEGER DEFAULT 1
             )
         """)
-        conn.commit()
 
-    # Categories table
-    with sqlite3.connect(DB_NAME) as conn:
-        c = conn.cursor()
+        # Categories table
         c.execute("""
             CREATE TABLE IF NOT EXISTS categories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,19 +44,13 @@ def init_db():
                 is_active INTEGER DEFAULT 1
             )
         """)
-        conn.commit()
 
-    # Ensure the System category exists (used for internal/account transactions)
-    with sqlite3.connect(DB_NAME) as conn:
-        c = conn.cursor()
+        # Ensure the System category exists (used for internal/account transactions)
         c.execute("SELECT id FROM categories WHERE name=?", ("System",))
         if not c.fetchone():
             c.execute("INSERT INTO categories (name, type) VALUES (?, ?)", ("System", "system"))
-        conn.commit()
 
-    # Transactions table
-    with sqlite3.connect(DB_NAME) as conn:
-        c = conn.cursor()
+        # Transactions table
         c.execute("""
             CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,22 +67,18 @@ def init_db():
             )
         """)
 
-    # Budgets table
-    with sqlite3.connect(DB_NAME) as conn:
-        c = conn.cursor()
+        # Budgets table
         c.execute("""
             CREATE TABLE IF NOT EXISTS budgets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
+                name TEXT NOT NULL UNIQUE,
                 start_date TEXT NOT NULL,
                 end_date TEXT,          -- Optional; can be null if paycheck-to-paycheck
                 type TEXT               -- "paycheck", "monthly", "yearly"
             )
         """)
 
-    # Budgeted categories table
-    with sqlite3.connect(DB_NAME) as conn:
-        c = conn.cursor()
+        # Budgeted categories table
         c.execute("""
             CREATE TABLE IF NOT EXISTS budgeted_categories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -102,9 +90,7 @@ def init_db():
             )
         """)
 
-    # Budget transactions table
-    with sqlite3.connect(DB_NAME) as conn:
-        c = conn.cursor()
+        # Budget transactions table
         c.execute("""
             CREATE TABLE IF NOT EXISTS budget_transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -537,6 +523,9 @@ class AddTransactionScreen(Screen):
                 INSERT INTO transactions (account_id, category_id, amount, date, description)
                 VALUES (?, ?, ?, ?, ?)
             """, (account_id, category_id, float(amount), date, description))
+        
+            # Get the ID of the transaction we just added
+            transaction_id = c.lastrowid
 
             # Update the account balance based on category type
             new_balance = current_balance + float(amount)
@@ -544,9 +533,27 @@ class AddTransactionScreen(Screen):
             c.execute("UPDATE accounts SET balance = ? WHERE id=?", (new_balance, account_id))
 
             conn.commit()
+        
+        self.link_transaction_to_budgets(transaction_id, date)
 
         # Go back to transactions screen
         self.manager.current = "transactions"
+
+    def link_transaction_to_budgets(self, txn_id, txn_date):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT id FROM budgets
+                WHERE start_date <= ? AND (end_date >= ? OR end_date IS NULL)
+            """, (txn_date, txn_date))
+            budget_ids = [row[0] for row in c.fetchall()]
+
+            for budget_id in budget_ids:
+                c.execute("""
+                    INSERT OR IGNORE INTO budget_transactions (budget_id, transaction_id)
+                    VALUES (?, ?)
+                """, (budget_id, txn_id))
+            conn.commit()
 
 import sqlite3
 
@@ -561,7 +568,7 @@ class BudgetManager:
     # -----------------------------
     def create_budget(self, name, start_date, end_date=None, type="paycheck"):
         """Create a new budget and return its ID"""
-        with sqlite3.connect(self.db_name) as conn:
+        with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("""
                 INSERT INTO budgets (name, start_date, end_date, type)
@@ -618,7 +625,7 @@ class BudgetManager:
 
     def get_allocated_categories(self, budget_id):
         """Return list of tuples (id, category_name, amount)"""
-        with sqlite3.connect(self.db_name) as conn:
+        with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("""
                 SELECT bc.id, c.name, bc.allocated_amount
@@ -676,7 +683,7 @@ class BudgetManager:
 
     def get_projected_transactions(self, budget_id):
         """Return list of projected transactions for a budget"""
-        with sqlite3.connect(self.db_name) as conn:
+        with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("""
                 SELECT t.id, a.name, c.name, t.amount, t.date
@@ -693,7 +700,7 @@ class BudgetManager:
     # -----------------------------
     def get_budget_summary(self, budget_id):
         """Return a dict with totals: allocated, spent, projected, remaining"""
-        with sqlite3.connect(self.db_name) as conn:
+        with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
 
             # Total allocated
@@ -704,9 +711,9 @@ class BudgetManager:
             c.execute("""
                 SELECT SUM(t.amount) FROM transactions t
                 JOIN budget_transactions bt ON t.id = bt.transaction_id
-                WHERE bt.budget_id=? AND t.projected=0
+                WHERE bt.budget_id=? AND t.projected=0 AND amount<0
             """, (budget_id,))
-            spent = c.fetchone()[0] or 0
+            spent = -c.fetchone()[0] or 0
 
             # Total projected (only pending)
             c.execute("""
@@ -742,7 +749,7 @@ class BudgetsScreen(Screen):
         for b in self.budgets:
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
             label = Label(
-                text=f"{b[1]} | {b[2]} → {b[3] or '…'} | {b[4].capitalize()}",
+                text=f"{b[1]} | {b[2]} → {b[3] or '…'} | {b[4]}",
                 halign="center",
                 valign="middle"
             )
@@ -769,25 +776,39 @@ class AddBudgetScreen(Screen):
         self.ids.start_date.text = datetime.now().strftime("%Y-%m-%d")
         self.ids.type_spinner.text = "Paycheck"  # default type
 
-    def add_budget(self, name, start_date, budget_type):
+    def add_budget(self, name, start_date, end_date=None):
         if not name:
             return
 
         if not start_date:
             start_date = datetime.now().strftime("%Y-%m-%d")
 
-        try:
-            datetime.strptime(start_date, "%Y-%m-%d")
-        except ValueError:
-            return
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
 
-        budget_manager = BudgetManager()
-        budget_id = budget_manager.create_budget(name, start_date, type=budget_type.lower())
+            # 1️⃣ Insert the new budget
+            c.execute("""
+                INSERT INTO budgets (name, start_date, end_date)
+                VALUES (?, ?, ?)
+            """, (name, start_date, end_date))
+            budget_id = c.lastrowid
 
-        # Navigate to summary to allocate categories
-        self.manager.current = "budget_summary"
-        self.manager.get_screen("budget_summary").load_budget(budget_id)
+            # 2️⃣ Find all transactions within the budget period
+            c.execute("""
+                SELECT id FROM transactions
+                WHERE date >= ? AND (date <= ? OR ? IS NULL)
+            """, (start_date, end_date, end_date))
+            txn_ids = [row[0] for row in c.fetchall()]
 
+            # 3️⃣ Link transactions to the budget
+            for txn_id in txn_ids:
+                c.execute("""
+                    INSERT OR IGNORE INTO budget_transactions (budget_id, transaction_id)
+                    VALUES (?, ?)
+                """, (budget_id, txn_id))
+
+            conn.commit()
+        return budget_id
 
 class BudgetSummaryScreen(Screen):
     budget_id = None
