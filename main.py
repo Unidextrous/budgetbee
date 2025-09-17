@@ -155,7 +155,12 @@ class AccountsScreen(Screen):
         """Fetch active accounts and populate the UI"""
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT id, owner, name, balance FROM accounts WHERE is_active = 1")
+            c.execute("""
+                SELECT id, owner, name, balance
+                FROM accounts
+                WHERE is_active = 1
+                ORDER BY owner ASC, name ASC
+            """)
             self.accounts = c.fetchall()
 
         # Update the UI list
@@ -294,7 +299,11 @@ class CategoriesScreen(Screen):
         """Fetch categories and populate the UI, excluding System"""
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT id, name, type FROM categories WHERE name != 'System' AND is_active = 1")
+            c.execute("""
+                SELECT id, name, type
+                FROM categories
+                WHERE name != 'System' AND is_active = 1
+                ORDER BY type DESC, name ASC""")
             self.categories = c.fetchall()
 
         # Update the UI
@@ -465,9 +474,19 @@ class AddTransactionScreen(Screen):
         conn = sqlite3.connect("budgetbee.db")
 
         c = conn.cursor()
-        c.execute("SELECT name FROM accounts WHERE is_active = 1")
+        c.execute("""
+            SELECT name
+            FROM accounts
+            WHERE is_active = 1
+            ORDER BY owner ASC, name ASC
+        """)
         accounts = [row[0] for row in c.fetchall()]
-        c.execute("SELECT name, type FROM categories WHERE name != 'System' AND is_active = 1")
+        c.execute("""
+            SELECT name, type
+            FROM categories
+            WHERE name != 'System' AND is_active = 1
+            ORDER BY type desc, name ASC
+        """)
         categories = [f"{row[0]} - ({row[1]})" for row in c.fetchall()]
 
         conn.close()
@@ -839,13 +858,27 @@ class BudgetSummaryScreen(Screen):
         # Populate spinners
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT name FROM categories WHERE type = 'Expense' AND name != 'System' AND is_active=1")
+            c.execute("""
+                SELECT name
+                FROM categories
+                WHERE type = 'Expense' AND name != 'System' AND is_active=1
+                ORDER BY type desc, name ASC
+            """)
             self.ids.alloc_category_spinner.values = [row[0] for row in c.fetchall()]
 
-            c.execute("SELECT name FROM accounts WHERE is_active=1")
+            c.execute("""
+                SELECT name
+                FROM accounts
+                WHERE is_active=1
+                ORDER BY owner ASC, name ASC
+            """)
             self.ids.proj_account_spinner.values = [row[0] for row in c.fetchall()]
 
-            c.execute("SELECT name FROM categories WHERE type = 'Expense' AND name != 'System' AND is_active=1")
+            c.execute("""
+                SELECT name
+                FROM categories
+                WHERE type = 'Expense' AND name != 'System' AND is_active=1
+                ORDER BY type DESC, name ASC""")
             self.ids.proj_category_spinner.values = [row[0] for row in c.fetchall()]
 
     def load_allocated_categories(self):
@@ -886,6 +919,7 @@ class BudgetSummaryScreen(Screen):
                 JOIN categories c ON t.category_id = c.id
                 JOIN budget_transactions bt ON t.id = bt.transaction_id
                 WHERE bt.budget_id=? AND t.projected=1
+                ORDER BY date ASC
             """, (self.budget_id,))
             self.projected_transactions = c.fetchall()
 
