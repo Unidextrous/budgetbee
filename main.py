@@ -170,6 +170,11 @@ class AccountsScreen(Screen):
         self.on_pre_enter()
 
 class AddAccountScreen(Screen):
+    def on_pre_enter(self):
+        self.ids.owner.text = ""
+        self.ids.name.text = ""
+        self.ids.balance.text = ""
+
     """Add a new account or reactivate a deleted account"""
     def add_account(self, owner, name, balance):
         if not owner or not name:
@@ -288,6 +293,14 @@ class CategoriesScreen(Screen):
             self.on_pre_enter()
 
 class AddCategoryScreen(Screen):
+    def on_pre_enter(self):
+        # Reset name field
+        self.ids.name.text = ""
+
+        # Reset toggle buttons
+        self.ids.income_btn.state = "normal"
+        self.ids.expense_btn.state = "normal"
+
     def add_category(self, name, type):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
@@ -400,6 +413,11 @@ class AddTransactionScreen(Screen):
     def on_pre_enter(self):
         """Refresh account and category spinners when screen is shown"""
         self.refresh_spinners()
+        self.ids.account_spinner.text = "Select Account"
+        self.ids.category_spinner.text = "Select Category"
+        self.ids.amount.text = ""
+        self.ids.description.text = ""
+        self.ids.date.text = ""  # if you’re using a date field
 
     def refresh_spinners(self):
         """Update spinner dropdown values"""
