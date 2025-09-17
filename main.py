@@ -717,11 +717,9 @@ class BudgetManager:
                 JOIN budget_transactions bt ON t.id = bt.transaction_id
                 WHERE bt.budget_id=? AND t.projected=0 AND amount<0
             """, (budget_id,))
-            if c.fetchone()[0] == None:
-                spent = 0
-            else:
-                spent = -c.fetchone()[0]
-
+            spent = c.fetchone()[0] or 0
+            if type(spent) == float:
+                spent = -spent
 
             # Total projected (only pending)
             c.execute("""
