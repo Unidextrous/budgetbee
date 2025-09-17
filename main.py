@@ -779,7 +779,7 @@ class BudgetsScreen(Screen):
         for b in self.budgets:
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
             label = Label(
-                text=f"{b[1]} | {b[2]} → {b[3] or '…'} | {b[4]}",
+                text=f"{b[1]} | {b[2]} - {b[3] or 'Current'} | {b[4]}",
                 halign="center",
                 valign="middle"
             )
@@ -787,9 +787,12 @@ class BudgetsScreen(Screen):
 
             view_btn = Button(text="View", size_hint_x=None, width=80)
             view_btn.bind(on_release=lambda btn, budget_id=b[0]: self.view_budget(budget_id))
+            delete_btn = Button(text="X", size_hint_x=0.1)
+            delete_btn.bind(on_release=lambda btn, bid=b[0]: self.delete_budget(bid))
 
             box.add_widget(label)
             box.add_widget(view_btn)
+            box.add_widget(delete_btn)
             self.ids.budgets_list.add_widget(box)
 
         self.ids.budgets_list.bind(minimum_height=self.ids.budgets_list.setter('height'))
@@ -798,6 +801,13 @@ class BudgetsScreen(Screen):
         self.manager.current = "budget_summary"
         self.manager.get_screen("budget_summary").load_budget(budget_id)
 
+    def delete_budget(self, budget_id):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM budgets WHERE id=?", (budget_id,))
+
+        # Refresh the budgets list
+        self.on_pre_enter()
 
 class AddBudgetScreen(Screen):
     def on_pre_enter(self):
