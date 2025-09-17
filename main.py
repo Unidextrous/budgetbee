@@ -68,6 +68,8 @@ def init_db():
                 date TEXT NOT NULL,
                 description TEXT,
                 projected INTEGER DEFAULT 0,
+                fulfilled INTEGER DEFAULT 0,
+                status TEXT DEFAULT "Pending",
                 FOREIGN KEY(account_id) REFERENCES accounts(id),
                 FOREIGN KEY(category_id) REFERENCES categories(id)
             )
@@ -381,6 +383,7 @@ class TransactionsScreen(Screen):
                 FROM transactions t
                 JOIN accounts a ON t.account_id = a.id
                 JOIN categories c ON t.category_id = c.id
+                WHERE projected = 0
                 ORDER BY t.date DESC
             """)
             self.transactions = c.fetchall()
@@ -686,11 +689,11 @@ class BudgetManager:
             """, (budget_id,))
             spent = c.fetchone()[0] or 0
 
-            # Total projected
+            # Total projected (only pending)
             c.execute("""
                 SELECT SUM(t.amount) FROM transactions t
                 JOIN budget_transactions bt ON t.id = bt.transaction_id
-                WHERE bt.budget_id=? AND t.projected=1
+                WHERE bt.budget_id=? AND t.projected=1 AND t.status='pending'
             """, (budget_id,))
             projected = c.fetchone()[0] or 0
 
@@ -772,6 +775,61 @@ class BudgetSummaryScreen(Screen):
     allocated_categories = ListProperty([])
     projected_transactions = ListProperty([])
 
+    def on_pre_enter(self):
+        # Clear old widgets
+        self.ids.allocated_list.clear_widgets()
+        self.ids.projected_list.clear_widgets()
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+
+            # Allocated categories
+            c.execute("""
+                SELECT bc.id, cat.name, bc.allocated_amount
+                FROM budgeted_categories bc
+                JOIN categories cat ON bc.category_id = cat.id
+                WHERE bc.budget_id=?
+            """, (self.budget_id,))
+            allocated = c.fetchall()
+
+            for ac in allocated:
+                row = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
+                row.add_widget(Label(
+                    text=f"{ac[1]} - Allocated: ${ac[2]:.2f}",
+                    halign="center", valign="middle"
+                ))
+                self.ids.allocated_list.add_widget(row)
+
+            # Projected transactions (transactions table with projected=1)
+            c.execute("""
+                SELECT t.id, cat.name, t.description, t.amount, t.status
+                FROM transactions t
+                JOIN categories cat ON t.category_id = cat.id
+                JOIN budget_transactions bt ON t.id = bt.transaction_id
+                WHERE bt.budget_id=? AND t.projected=1
+            """, (self.budget_id,))
+            projected = c.fetchall()
+
+            for proj in projected:
+                proj_id, cat_name, desc, amt, status = proj
+                row = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
+
+                row.add_widget(Label(text=f"{desc} (${amt:.2f})", size_hint_x=0.5))
+
+                completed_btn = Button(text="Completed", size_hint_x=0.2)
+                completed_btn.bind(on_release=lambda btn, pid=proj_id: self.update_projected_status(pid, "Completed"))
+                row.add_widget(completed_btn)
+
+                skipped_btn = Button(text="Skipped", size_hint_x=0.2)
+                skipped_btn.bind(on_release=lambda btn, pid=proj_id: self.update_projected_status(pid, "Skipped"))
+                row.add_widget(skipped_btn)
+
+                delete_btn = Button(text="X", size_hint_x=0.1)
+                delete_btn.bind(on_release=lambda btn, pid=proj_id: self.delete_projected_transaction(pid))
+                row.add_widget(delete_btn)
+
+                self.ids.projected_list.add_widget(row)
+
     def load_budget(self, budget_id):
         self.budget_id = budget_id
         self.load_allocated_categories()
@@ -834,34 +892,53 @@ class BudgetSummaryScreen(Screen):
         self.ids.projected_list.clear_widgets()
         for txn in self.projected_transactions:
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
-            label = Label(text=f"{txn[1]} | {txn[2]} | ${txn[3]:.2f} | {txn[4]}", halign="center", valign="middle")
+
+            # Transaction label
+            label = Label(
+                text=f"{txn[1]} | {txn[2]} | ${txn[3]:.2f} | {txn[4]}",
+                halign="center",
+                valign="middle"
+            )
             label.bind(size=label.setter("text_size"))
 
-            delete_btn = Button(text="X", size_hint_x=None, width=40)
+            # Completed button
+            complete_btn = Button(
+                text="Completed",
+                size_hint_x=None,
+                width=100,
+                height=40,
+                font_size=14
+            )
+            complete_btn.bind(on_release=lambda btn, txn_id=txn[0]: self.update_projected_status(txn_id, 'completed'))
+
+            # Skipped button
+            skip_btn = Button(
+                text="Skipped",
+                size_hint_x=None,
+                width=100,
+                height=40,
+                font_size=14
+            )
+            skip_btn.bind(on_release=lambda btn, txn_id=txn[0]: self.update_projected_status(txn_id, 'skipped'))
+
+            # Delete button
+            delete_btn = Button(
+                text="X",
+                size_hint_x=None,
+                width=50,
+                height=40,
+                font_size=16
+            )
             delete_btn.bind(on_release=lambda btn, txn_id=txn[0]: self.delete_projected_transaction(txn_id))
 
             box.add_widget(label)
+            box.add_widget(complete_btn)
+            box.add_widget(skip_btn)
             box.add_widget(delete_btn)
+
             self.ids.projected_list.add_widget(box)
 
         self.ids.projected_list.bind(minimum_height=self.ids.projected_list.setter('height'))
-
-    def delete_allocated_category(self, bc_id):
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-            c.execute("DELETE FROM budgeted_categories WHERE id=?", (bc_id,))
-            conn.commit()
-        self.load_allocated_categories()
-        self.update_summary_labels()
-
-    def delete_projected_transaction(self, txn_id):
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-            c.execute("DELETE FROM transactions WHERE id=?", (txn_id,))
-            c.execute("DELETE FROM budget_transactions WHERE transaction_id=?", (txn_id,))
-            conn.commit()
-        self.load_projected_transactions()
-        self.update_summary_labels()
 
     def add_budgeted_category(self, category_name, amount):
         if not category_name or not amount:
@@ -886,6 +963,8 @@ class BudgetSummaryScreen(Screen):
             """, (self.budget_id, category_id, amount))
             conn.commit()
 
+        self.ids.alloc_category_spinner.text = "Select Category"
+        self.ids.alloc_amount.text = ""
         self.load_allocated_categories()
         self.update_summary_labels()
 
@@ -925,6 +1004,43 @@ class BudgetSummaryScreen(Screen):
                       (self.budget_id, txn_id))
             conn.commit()
 
+        self.ids.proj_account_spinner.text = "Select Account"
+        self.ids.proj_category_spinner.text = "Select Category"
+        self.ids.proj_amount.text = ""
+        self.ids.proj_date.text = ""
+        self.load_projected_transactions()
+        self.update_summary_labels()
+
+    def update_projected_status(self, txn_id, new_status):
+        """Mark a projected transaction as completed or skipped"""
+        if new_status not in ['completed', 'skipped']:
+            return
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("UPDATE transactions SET status=? WHERE id=?", (new_status, txn_id))
+            conn.commit()
+        
+        self.on_pre_enter()
+
+        # Reload list and summary
+        self.load_projected_transactions()
+        self.update_summary_labels()
+
+    def delete_allocated_category(self, bc_id):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM budgeted_categories WHERE id=?", (bc_id,))
+            conn.commit()
+        self.load_allocated_categories()
+        self.update_summary_labels()
+        
+    def delete_projected_transaction(self, txn_id):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM transactions WHERE id=?", (txn_id,))
+            c.execute("DELETE FROM budget_transactions WHERE transaction_id=?", (txn_id,))
+            conn.commit()
         self.load_projected_transactions()
         self.update_summary_labels()
 
