@@ -264,9 +264,19 @@
         padding: 10
         spacing: 10
 
-        Label:
-            text: "Budget Summary"
-            font_size: 28
+        BoxLayout:
+            id: header_box
+            orientation: "horizontal"
+
+            Label:
+                id: budget_header
+                font_size: 18
+                bold: True
+            Button:
+                text: "Edit"
+                size_hint_x: None
+                width: 80
+                on_release: root.edit_budget()
 
         BoxLayout:
             orientation: "horizontal"

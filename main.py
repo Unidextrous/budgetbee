@@ -1215,6 +1215,17 @@ class BudgetSummaryScreen(Screen):
 
     def load_budget(self, budget_id):
         self.budget_id = budget_id
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("SELECT name, start_date, end_date FROM budgets WHERE id=?", (budget_id,))
+            row = c.fetchone()
+
+        if row:
+            name, start_date, end_date = row
+            end = end_date if end_date else "Current"
+            self.ids.budget_header.text = f"{name} | {start_date} - {end}"
+
         self.load_allocated_categories()
         self.load_projected_transactions()
         self.update_summary_labels()
@@ -1438,6 +1449,44 @@ class BudgetSummaryScreen(Screen):
         # Reload list and summary
         self.load_projected_transactions()
         self.update_summary_labels()
+
+    def edit_budget(self):
+        budget_id = self.budget_id
+
+        with sqlite3.connect(DB_NAME) as conn:
+            # Get current values
+            c = conn.cursor()
+            c.execute("SELECT name, start_date, type FROM budgets WHERE id=?", (budget_id,))
+            name, start_date, btype = c.fetchone()
+
+            layout = BoxLayout(orientation="vertical", spacing=10, padding=10)
+
+            name_input = TextInput(text=name, multiline=False)
+            start_input = TextInput(text=start_date, multiline=False)
+
+            save_btn = Button(text="Save", size_hint_y=None, height=40)
+
+            def save_changes(instance):
+                new_name = name_input.text.strip()
+                new_start = start_input.text.strip()
+
+                c.execute("UPDATE budgets SET name=?, start_date=? WHERE id=?",
+                            (new_name, new_start, budget_id))
+                conn.commit()
+                popup.dismiss()
+                self.load_budget(budget_id)  # refresh header + data
+
+            save_btn.bind(on_release=save_changes)
+
+            layout.add_widget(Label(text="Name:"))
+            layout.add_widget(name_input)
+            layout.add_widget(Label(text="Start Date (yyyy-mm-dd):"))
+            layout.add_widget(start_input)
+            layout.add_widget(save_btn)
+
+            popup = Popup(title="Edit Budget", content=layout,
+                        size_hint=(0.8, 0.6), auto_dismiss=True)
+            popup.open()
 
     def delete_allocated_category(self, bc_id):
         with sqlite3.connect(DB_NAME) as conn:
