@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from kivy.app import App
 from kivy.uix.popup import Popup
 from kivy.uix.textinput import TextInput
@@ -116,6 +116,23 @@ def get_system_category_id():
         row = c.fetchone()
 
         return row[0]
+
+def recalc_budget_ranges(conn):
+    c = conn.cursor()
+    c.execute("SELECT id, start_date FROM budgets ORDER BY start_date ASC")
+    budgets = c.fetchall()
+
+    for i, (budget_id, start_date) in enumerate(budgets):
+        if i < len(budgets) - 1:
+            # End date = day before next budget's start date
+            next_start = budgets[i+1][1]
+            end_date = (datetime.strptime(next_start, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+        else:
+            # Last budget = Current
+            end_date = "Current"
+
+        c.execute("UPDATE budgets SET end_date=? WHERE id=?", (end_date, budget_id))
+    conn.commit()
 
 # -----------------------------
 # Screens
@@ -1069,8 +1086,9 @@ class BudgetsScreen(Screen):
             c = conn.cursor()
             c.execute("DELETE FROM budgets WHERE id=?", (budget_id,))
 
-        # Refresh the budgets list
-        self.on_pre_enter()
+            # Recalculate  budget ranges and refresh the budgets list
+            recalc_budget_ranges(conn)
+            self.on_pre_enter()
 
 class AddBudgetScreen(Screen):
     def on_pre_enter(self):
@@ -1080,7 +1098,6 @@ class AddBudgetScreen(Screen):
         self.ids.type_spinner.text = "Paycheck"  # default type
 
     def add_budget(self, name, start_date, type):
-        from datetime import datetime, timedelta
         start = datetime.strptime(start_date, "%Y-%m-%d")
 
         with sqlite3.connect(DB_NAME) as conn:
@@ -1470,9 +1487,14 @@ class BudgetSummaryScreen(Screen):
                 new_name = name_input.text.strip()
                 new_start = start_input.text.strip()
 
+                # Update the budget
                 c.execute("UPDATE budgets SET name=?, start_date=? WHERE id=?",
                             (new_name, new_start, budget_id))
                 conn.commit()
+
+                # --- Recalculate all budget ranges ---
+                recalc_budget_ranges(conn)
+
                 popup.dismiss()
                 self.load_budget(budget_id)  # refresh header + data
 
