@@ -1,9 +1,11 @@
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
+from calendar import month_name, monthrange
 from kivy.app import App
 from kivy.uix.popup import Popup
 from kivy.uix.textinput import TextInput
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
 from kivy.uix.button import Button
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.label import Label
@@ -146,6 +148,107 @@ class DashboardScreen(Screen):
             c.execute("SELECT SUM(balance) FROM accounts WHERE is_active = 1")
             total = c.fetchone()[0] or 0.0
             self.total_balance = f"{total:.2f}"
+
+# -----------------------------
+# Calendar Popup
+# -----------------------------
+class CalendarPopup(Popup):
+    def __init__(self, target_input, year=None, month=None, **kwargs):
+        super().__init__(**kwargs)
+        self.title = "Select Date"
+        self.size_hint = (0.9, 0.8)
+
+        self.target_input = target_input
+
+        today = date.today()
+        self.year = year or today.year
+        self.month = month or today.month
+
+        self.build_calendar()
+
+    def build_calendar(self):
+        main_layout = BoxLayout(orientation="vertical", spacing=5, padding=5)
+
+        # Navigation
+        nav_layout = BoxLayout(size_hint_y=None, height=40, spacing=10)
+        prev_year_btn = Button(text="<", size_hint_x=None, width=40)
+        next_year_btn = Button(text=">", size_hint_x=None, width=40)
+        year_label = Button(text=f"{self.year}", background_color=(0,0,0,0), disabled=True)
+        prev_month_btn = Button(text="<", size_hint_x=None, width=40)
+        next_month_btn = Button(text=">", size_hint_x=None, width=40)
+        month_label = Button(text=f"{month_name[self.month]}", background_color=(0,0,0,0), disabled=True)
+        prev_year_btn.bind(on_release=self.prev_year)
+        next_year_btn.bind(on_release=self.next_year)
+        prev_month_btn.bind(on_release=self.prev_month)
+        next_month_btn.bind(on_release=self.next_month)
+        nav_layout.add_widget(prev_year_btn)
+        nav_layout.add_widget(year_label)
+        nav_layout.add_widget(next_year_btn)
+        nav_layout.add_widget(prev_month_btn)
+        nav_layout.add_widget(month_label)
+        nav_layout.add_widget(next_month_btn)
+
+        self.month_label = month_label
+        self.year_label = year_label
+        main_layout.add_widget(nav_layout)
+
+        # Calendar grid
+        self.grid = GridLayout(cols=7, spacing=5, padding=5)
+        main_layout.add_widget(self.grid)
+
+        self.refresh_calendar()
+        self.content = main_layout
+
+    def refresh_calendar(self):
+        self.grid.clear_widgets()
+
+        # Days of week headers
+        for d in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]:
+            self.grid.add_widget(Button(text=d, size_hint_y=None, height=30, disabled=True))
+    
+        first_weekday, num_days = monthrange(self.year, self.month)
+
+        # Fill in blanks for first week
+        for _ in range((first_weekday + 6) % 7):
+            self.grid.add_widget(Button(text="", size_hint_y=None, height=30, disabled=True))
+
+        # Add day buttons
+        for day in range(1, num_days + 1):
+            btn = Button(text=str(day), size_hint_y=None, height=40)
+            btn.bind(on_release=self.select_date)
+            self.grid.add_widget(btn)
+        
+        self.year_label.text = f"{self.year}"
+        self.month_label.text = f"{month_name[self.month]}"
+
+    def prev_year(self, instance):
+        self.year -= 1
+        self.refresh_calendar()
+
+    def next_year(self, instance):
+        self.year += 1
+        self.refresh_calendar()
+
+    def prev_month(self, instance):
+        if self.month == 1:
+            self.month = 12
+            self.year -= 1
+        else:
+            self.month -= 1
+        self.refresh_calendar()
+
+    def next_month(self, instance):
+        if self.month == 12:
+            self.month = 1
+            self.year += 1
+        else:
+            self.month += 1
+        self.refresh_calendar()
+
+    def select_date(self, instance):
+        selected_day = int(instance.text)
+        self.target_input.text = f"{self.year:04d}-{self.month:02d}-{selected_day:02d}"
+        self.dismiss()
 
 # -----------------------------
 # Accounts screens
@@ -434,6 +537,9 @@ class AddCategoryScreen(Screen):
         self.ids.expense_btn.state = "normal"
 
     def add_category(self, name, type):
+        if not name or not type:
+            return
+        
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             # Check if category exists
@@ -478,7 +584,13 @@ class EditCategoryScreen(Screen):
     
     def save_category(self):
         new_name = self.ids.name.text
-        new_type = "Income" if self.ids.income_btn.state == "down" else "Expense"
+        if self.ids.income_btn.state == "down":
+            new_type = "Income"
+        elif self.ids.expense_btn.state == "down":
+            new_type = "Expense"
+        
+        if not new_name or not new_type:
+            return
 
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
@@ -631,7 +743,11 @@ class AddTransactionScreen(Screen):
         self.ids.category_spinner.text = "Select Category"
         self.ids.amount.text = ""
         self.ids.description.text = ""
-        self.ids.date.text = ""  # if you’re using a date field
+        self.ids.date.text = datetime.now().strftime('%Y-%m-%d')
+    
+    def open_calendar(self, target_input):
+        popup = CalendarPopup(target_input=target_input)
+        popup.open()
 
     def refresh_spinners(self):
         """Update spinner dropdown values"""
@@ -739,6 +855,10 @@ class AddTransactionScreen(Screen):
             conn.commit()
 
 class EditTransactionScreen(Screen):
+    def open_calendar(self, target_input):
+        popup = CalendarPopup(target_input=target_input)
+        popup.open()
+
     def load_transaction(self, transaction_id):
         self.transaction_id = transaction_id
         with sqlite3.connect(DB_NAME) as conn:
@@ -1093,6 +1213,10 @@ class AddBudgetScreen(Screen):
     def on_pre_enter(self):
         """Reset fields"""
         self.ids.budget_name.text = ""
+    
+    def open_calendar(self, target_input):
+        popup = CalendarPopup(target_input=target_input)
+        popup.open()
 
     def add_budget(self, name, start_date):
         if not start_date:
@@ -1229,6 +1353,10 @@ class BudgetSummaryScreen(Screen):
                 row.add_widget(delete_btn)
 
                 self.ids.projected_list.add_widget(row)
+
+    def open_calendar(self, target_input):
+        popup = CalendarPopup(target_input=target_input)
+        popup.open()
 
     def load_budget(self, budget_id):
         self.budget_id = budget_id
@@ -1482,7 +1610,14 @@ class BudgetSummaryScreen(Screen):
             layout = BoxLayout(orientation="vertical", spacing=10, padding=10)
 
             name_input = TextInput(text=name, multiline=False)
-            start_input = TextInput(text=start_date, multiline=False)
+
+            # Wrap start_input and "Pick Date" button together
+            start_row = BoxLayout(orientation="horizontal", spacing=5, size_hint_y=None, height=40)
+            start_input = TextInput(text=start_date, multiline=False, readonly=True)
+            pick_date_btn = Button(text="Pick Date", size_hint_x=None, width=100)
+            pick_date_btn.bind(on_release=lambda instance: self.open_calendar(start_input))
+            start_row.add_widget(start_input)
+            start_row.add_widget(pick_date_btn)
 
             save_btn = Button(text="Save", size_hint_y=None, height=40)
 
@@ -1506,7 +1641,7 @@ class BudgetSummaryScreen(Screen):
             layout.add_widget(Label(text="Name:"))
             layout.add_widget(name_input)
             layout.add_widget(Label(text="Start Date (yyyy-mm-dd):"))
-            layout.add_widget(start_input)
+            layout.add_widget(start_row)   # instead of adding start_input directly
             layout.add_widget(save_btn)
 
             popup = Popup(title="Edit Budget", content=layout,

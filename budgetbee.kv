@@ -116,7 +116,7 @@
                 group: "type"
         Button:
             text: "Save Category"
-            on_release: root.add_category(name.text, "Income" if income_btn.state == "down" else "Expense")
+            on_release: root.add_category(name.text, "Income" if income_btn.state == "down" else ("Expense" if expense_btn.state == "down" else ""))
         Button:
             text: "Back"
             on_release: app.root.current = "categories"
@@ -179,9 +179,18 @@
             id: amount
             hint_text: "Amount"
             input_filter: "float"
-        TextInput:
-            id: date
-            hint_text: "Date (YYYY-MM-DD) (Default: Today)"
+        BoxLayout:
+            orientation: "horizontal"
+            spacing: 5
+            TextInput:
+                id: date
+                hint_text: "Date (YYYY-MM-DD)"
+                readonly: True
+            Button:
+                text: "Pick Date"
+                size_hint_x: None
+                width: 100
+                on_release: root.open_calendar(date)
         TextInput:
             id: description
             hint_text: "Description"
@@ -195,27 +204,47 @@
 <EditTransactionScreen>
     BoxLayout:
         orientation: "vertical"
+
         Spinner:
             id: account_spinner
             text: "Select Account"
             values: root.get_account_names()
+
         Spinner:
             id: category_spinner
             text: "Select Category"
             values: root.get_category_names()
+
         TextInput:
             id: amount
             hint_text: "Transaction Amount"
             input_filter: "float"
-        TextInput:
-            id: date
-            hint_text: "Date (YYYY-MM-DD)"
+
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: 40
+            spacing: 5
+
+            TextInput:
+                id: date
+                hint_text: "Date (YYYY-MM-DD)"
+                readonly: True
+
+            Button:
+                text: "Pick Date"
+                size_hint_x: None
+                width: 100
+                on_release: root.open_calendar(root.ids.date)
+
         TextInput:
             id: description
             hint_text: "Description"
+
         Button:
             text: "Save Transaction"
             on_release: root.save_transaction()
+
         Button:
             text: "Back"
             on_release: app.root.current = "transactions"
@@ -244,9 +273,18 @@
         TextInput:
             id: budget_name
             hint_text: "Budget Name"
-        TextInput:
-            id: start_date
-            hint_text: "Start Date (YYYY-MM-DD) (Default: Today)"
+        BoxLayout:
+            orientation: "horizontal"
+            spacing: 5
+            TextInput:
+                id: start_date
+                hint_text: "Start Date (YYYY-MM-DD)"
+                readonly: True
+            Button:
+                text: "Pick Date"
+                size_hint_x: None
+                width: 100
+                on_release: root.open_calendar(start_date)
         Button:
             text: "Save Budget"
             on_release: root.add_budget(budget_name.text, start_date.text)
@@ -357,9 +395,18 @@
                 id: proj_amount
                 hint_text: "Amount"
                 input_filter: "float"
-            TextInput:
-                id: proj_date
-                hint_text: "Date (YYYY-MM-DD)"
+            BoxLayout:
+                orientation: "horizontal"
+                spacing: 5
+                TextInput:
+                    id: proj_date
+                    hint_text: "Projected Date (YYYY-MM-DD)"
+                    readonly: True
+                Button:
+                    text: "Pick Date"
+                    size_hint_x: None
+                    width: 100
+                    on_release: root.open_calendar(proj_date)
             Button:
                 text: "Add"
                 size_hint_x: None
