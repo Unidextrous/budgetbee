@@ -72,8 +72,8 @@ def init_db():
             CREATE TABLE IF NOT EXISTS budgets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
-                start_date TEXT NOT NULL,
-                end_date TEXT
+                start_date TEXT NOT NULL UNIQUE,
+                end_date TEXT UNIQUE
             )
         """)
 
