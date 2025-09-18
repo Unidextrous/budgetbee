@@ -1117,7 +1117,10 @@ class AddBudgetScreen(Screen):
             conn.commit()
 
             self.link_existing_transactions_to_budget(new_id)
-            return new_id
+
+            # Now navigate to the summary screen
+            self.manager.current = "budget_summary"
+            self.manager.get_screen("budget_summary").load_budget(new_id)
 
     def link_existing_transactions_to_budget(self, budget_id):
         with sqlite3.connect(DB_NAME) as conn:
