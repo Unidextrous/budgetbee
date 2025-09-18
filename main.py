@@ -530,7 +530,7 @@ class TransactionsScreen(Screen):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("""
-                SELECT t.id, a.name, t.amount, c.name, t.date, t.description
+                SELECT t.id, a.name, c.name, t.amount, t.date, t.description
                 FROM transactions t
                 JOIN accounts a ON t.account_id = a.id
                 JOIN categories c ON t.category_id = c.id
@@ -545,10 +545,10 @@ class TransactionsScreen(Screen):
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
 
             # Format amount display
-            amount_display = f"${txn[2]:.2f}" if txn[2] >= 0 else f"-${-txn[2]:.2f}"
+            amount_display = f"${txn[3]:.2f}" if txn[3] >= 0 else f"-${-txn[3]:.2f}"
 
             label = Label(
-                text=f"{txn[1]} | {amount_display} | {txn[3]} | {txn[4]} | {txn[5]}",
+                text=f"{txn[1]} | {txn[2]} | {amount_display} | {txn[4]} | {txn[5]}",
                 halign="center",
                 valign="middle"
             )
@@ -557,19 +557,25 @@ class TransactionsScreen(Screen):
             box.add_widget(label)
 
             # Add delete button for non-system transactions
-            if txn[3] != "System":
-                delete_btn = Button(
-                    text="X",
-                    size_hint_x=None,
-                    width=40
-                )
+            if txn[2] != "System":
+                edit_btn = Button(text="Edit", size_hint_x=None)
+                edit_btn.bind(on_release=lambda btn, txn_id=txn[0]: self.edit_transaction(txn_id))
+
+                delete_btn = Button(text="X", size_hint_x=None, width=40)
                 delete_btn.bind(on_release=lambda btn, txn_id=txn[0]: self.delete_transaction(txn_id))
+                
+                box.add_widget(edit_btn)
                 box.add_widget(delete_btn)
 
             self.ids.txns_list.add_widget(box)
 
         # **Bind height to children**
         self.ids.txns_list.bind(minimum_height=self.ids.txns_list.setter('height'))
+
+    def edit_transaction(self, transaction_id):
+        edit_screen = self.manager.get_screen("edit_transaction")
+        edit_screen.load_transaction(transaction_id)
+        self.manager.current = "edit_transaction"
 
     def delete_transaction(self, txn_id):
         """Delete a transaction and adjust account balance"""
@@ -716,9 +722,109 @@ class AddTransactionScreen(Screen):
                     """, (budget_id, txn_id))
             conn.commit()
 
-import sqlite3
+class EditTransactionScreen(Screen):
+    def load_transaction(self, transaction_id):
+        self.transaction_id = transaction_id
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("""
+                SELECT a.name, c.name, t.amount, t.date, t.description
+                FROM transactions t
+                JOIN accounts a ON t.account_id = a.id
+                JOIN categories c ON t.category_id = c.id
+                WHERE t.id=?
+            """, (transaction_id,))
+            row = c.fetchone()
 
-DB_NAME = "budgetbee.db"
+        if row:
+            account_name, category_name, amount, date, description = row
+
+            # Populate account spinner
+            self.ids.account_spinner.values = self.get_account_names()
+            self.ids.account_spinner.text = account_name
+
+            # Populate category spinner, filter out 'System'
+            self.ids.category_spinner.values = self.get_category_names()
+            if category_name in self.ids.category_spinner.values:
+                self.ids.category_spinner.text = category_name
+            else:
+                self.ids.category_spinner.text = self.ids.category_spinner.values[0]
+
+            if amount >= 0:
+                self.ids.amount.text = str(amount)
+            else:
+                self.ids.amount.text = str(amount)[1:]
+            self.ids.date.text = date
+            self.ids.description.text = description
+
+    def get_account_names(self):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("SELECT name FROM accounts")
+            return [row[0] for row in c.fetchall()]
+
+    def get_category_names(self):
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("SELECT name FROM categories WHERE name != 'System'")
+            return [row[0] for row in c.fetchall()]
+        
+    def save_transaction(self):
+        new_account = self.ids.account_spinner.text
+        new_category = self.ids.category_spinner.text
+        new_amount = float(self.ids.amount.text)
+        new_date = self.ids.date.text
+        new_description = self.ids.description.text
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+
+            c.execute("SELECT id FROM accounts WHERE name = ?", (new_account,))
+            row = c.fetchone()
+            new_account_id = row[0]
+
+            c.execute("SELECT id, type FROM categories WHERE name = ?", (new_category,))
+            row = c.fetchone()
+            new_category_id = row[0]
+            new_category_type = row[1]
+
+            if new_category_type == "Expense":
+                new_amount = -new_amount
+
+            # Get old transaction
+            c.execute("SELECT account_id, category_id, amount, date, description FROM transactions WHERE id=?", (self.transaction_id,))
+            row = c.fetchone()
+
+            if not row:
+                return
+
+            old_account_id, old_category_id, old_amount, old_date, old_description = row
+
+            # --- Update transaction row ---
+            c.execute("""
+                UPDATE transactions
+                SET account_id=?, category_id=?, amount=?, date=?, description=?
+                WHERE id=?
+            """, (new_account_id, new_category_id, new_amount, new_date, new_description, self.transaction_id))
+
+            # --- If account changed, adjust both old and new balances ---
+            if old_account_id != new_account_id:
+                # Subtract from old account
+                c.execute("UPDATE accounts SET balance = balance - ? WHERE id=?", (old_amount, old_account_id))
+                # Add to new account
+                c.execute("UPDATE accounts SET balance = balance + ? WHERE id=?", (new_amount, new_account_id))
+
+            # --- If account is the same, but amount changed ---
+            elif old_amount != new_amount:
+                amount_diff = new_amount - old_amount
+                c.execute("UPDATE accounts SET balance = balance + ? WHERE id=?", (amount_diff, old_account_id))
+
+            conn.commit()
+
+        # Go back to transactions screen
+        transactions_screen = self.manager.get_screen("transactions")
+        transactions_screen.transaction_id = self.transaction_id
+        self.manager.current = "transactions"
 
 class BudgetManager:
     def __init__(self, db_name=DB_NAME):
@@ -1381,6 +1487,7 @@ class BudgetBeeApp(App):
         sm.add_widget(EditCategoryScreen(name="edit_category"))
         sm.add_widget(TransactionsScreen(name="transactions"))
         sm.add_widget(AddTransactionScreen(name="add_transaction"))
+        sm.add_widget(EditTransactionScreen(name="edit_transaction"))
         sm.add_widget(BudgetsScreen(name="budgets"))
         sm.add_widget(BudgetSummaryScreen(name="budget_summary"))
         sm.add_widget(AddBudgetScreen(name="add_budget"))

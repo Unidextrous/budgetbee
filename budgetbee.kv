@@ -192,6 +192,34 @@
             text: "Back"
             on_release: app.root.current = "transactions"
 
+<EditTransactionScreen>
+    BoxLayout:
+        orientation: "vertical"
+        Spinner:
+            id: account_spinner
+            text: "Select Account"
+            values: root.get_account_names()
+        Spinner:
+            id: category_spinner
+            text: "Select Category"
+            values: root.get_category_names()
+        TextInput:
+            id: amount
+            hint_text: "Transaction Amount"
+            input_filter: "float"
+        TextInput:
+            id: date
+            hint_text: "YYYY-MM-DD"
+        TextInput:
+            id: description
+            hint_text: "Description"
+        Button:
+            text: "Save Transaction"
+            on_release: root.save_transaction()
+        Button:
+            text: "Back"
+            on_release: app.root.current = "transactions"
+
 <BudgetsScreen>:
     BoxLayout:
         orientation: "vertical"
