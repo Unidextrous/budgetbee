@@ -209,7 +209,7 @@
             input_filter: "float"
         TextInput:
             id: date
-            hint_text: "YYYY-MM-DD"
+            hint_text: "Date (YYYY-MM-DD)"
         TextInput:
             id: description
             hint_text: "Description"
@@ -246,14 +246,10 @@
             hint_text: "Budget Name"
         TextInput:
             id: start_date
-            hint_text: "Start Date (YYYY-MM-DD, optional)"
-        Spinner:
-            id: type_spinner
-            text: "Paycheck"
-            values: ["Paycheck", "Monthly", "Yearly"]
+            hint_text: "Start Date (YYYY-MM-DD) (Default: Today)"
         Button:
             text: "Save Budget"
-            on_release: root.add_budget(budget_name.text, start_date.text, type_spinner.text)
+            on_release: root.add_budget(budget_name.text, start_date.text)
         Button:
             text: "Back"
             on_release: app.root.current = "budgets"

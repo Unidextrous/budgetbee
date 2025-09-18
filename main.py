@@ -73,8 +73,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
                 start_date TEXT NOT NULL,
-                end_date TEXT,          -- Optional; can be null if paycheck-to-paycheck
-                type TEXT               -- "paycheck", "monthly", "yearly"
+                end_date TEXT
             )
         """)
 
@@ -850,14 +849,14 @@ class BudgetManager:
     # -----------------------------
     # Budget Creation
     # -----------------------------
-    def create_budget(self, name, start_date, end_date=None, type="paycheck"):
+    def create_budget(self, name, start_date, end_date=None):
         """Create a new budget and return its ID"""
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("""
-                INSERT INTO budgets (name, start_date, end_date, type)
-                VALUES (?, ?, ?, ?)
-            """, (name, start_date, end_date, type))
+                INSERT INTO budgets (name, start_date, end_date)
+                VALUES (?, ?, ?)
+            """, (name, start_date, end_date))
             conn.commit()
             return c.lastrowid
 
@@ -1051,7 +1050,7 @@ class BudgetsScreen(Screen):
         """Load all budgets from DB"""
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT id, name, start_date, end_date, type FROM budgets ORDER BY start_date DESC")
+            c.execute("SELECT id, name, start_date, end_date FROM budgets ORDER BY start_date DESC")
             self.budgets = c.fetchall()
 
         # Update UI list
@@ -1059,7 +1058,7 @@ class BudgetsScreen(Screen):
         for b in self.budgets:
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
             label = Label(
-                text=f"{b[1]} | {b[2]} - {b[3] or 'Current'} | {b[4]}",
+                text=f"{b[1]} | {b[2]} - {b[3] or 'Current'}",
                 halign="center",
                 valign="middle"
             )
@@ -1094,10 +1093,11 @@ class AddBudgetScreen(Screen):
     def on_pre_enter(self):
         """Reset fields"""
         self.ids.budget_name.text = ""
-        self.ids.start_date.text = datetime.now().strftime("%Y-%m-%d")
-        self.ids.type_spinner.text = "Paycheck"  # default type
 
-    def add_budget(self, name, start_date, type):
+    def add_budget(self, name, start_date):
+        if not start_date:
+            start_date = datetime.now().strftime("%Y-%m-%d")
+
         start = datetime.strptime(start_date, "%Y-%m-%d")
 
         with sqlite3.connect(DB_NAME) as conn:
@@ -1105,9 +1105,9 @@ class AddBudgetScreen(Screen):
 
             # Step 1: Insert the new budget
             c.execute("""
-                INSERT INTO budgets (name, start_date, type)
-                VALUES (?, ?, ?)
-            """, (name, start_date, type))
+                INSERT INTO budgets (name, start_date)
+                VALUES (?, ?)
+            """, (name, start_date))
             new_id = c.lastrowid
 
             # Step 2: Find overlapping budgets
@@ -1410,6 +1410,9 @@ class BudgetSummaryScreen(Screen):
         except ValueError:
             return
 
+        if not date:
+            date = datetime.now().strftime("%Y-%m-%d")
+
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             # Get account ID
@@ -1473,8 +1476,8 @@ class BudgetSummaryScreen(Screen):
         with sqlite3.connect(DB_NAME) as conn:
             # Get current values
             c = conn.cursor()
-            c.execute("SELECT name, start_date, type FROM budgets WHERE id=?", (budget_id,))
-            name, start_date, btype = c.fetchone()
+            c.execute("SELECT name, start_date FROM budgets WHERE id=?", (budget_id,))
+            name, start_date = c.fetchone()
 
             layout = BoxLayout(orientation="vertical", spacing=10, padding=10)
 
