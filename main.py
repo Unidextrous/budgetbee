@@ -1,6 +1,8 @@
 import sqlite3
 from datetime import datetime, date, timedelta
 from calendar import month_name, monthrange
+from matplotlib import pyplot as plt
+import io
 from kivy.app import App
 from kivy.uix.popup import Popup
 from kivy.uix.textinput import TextInput
@@ -9,6 +11,8 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.button import Button
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.label import Label
+from kivy.uix.image import Image
+from kivy.core.image import Image as CoreImage
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.properties import StringProperty, ListProperty, ObjectProperty
 from kivy.lang import Builder
@@ -136,20 +140,6 @@ def recalc_budget_ranges(conn):
     conn.commit()
 
 # -----------------------------
-# Screens
-# -----------------------------
-class DashboardScreen(Screen):
-    total_balance = StringProperty("0.00")
-
-    def on_pre_enter(self):
-        """Update total balance before entering the dashboard"""
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-            c.execute("SELECT SUM(balance) FROM accounts WHERE is_active = 1")
-            total = c.fetchone()[0] or 0.0
-            self.total_balance = f"{total:.2f}"
-
-# -----------------------------
 # Calendar Popup
 # -----------------------------
 class CalendarPopup(Popup):
@@ -209,7 +199,7 @@ class CalendarPopup(Popup):
         first_weekday, num_days = monthrange(self.year, self.month)
 
         # Fill in blanks for first week
-        for _ in range((first_weekday + 6) % 7):
+        for _ in range((first_weekday + 7) % 7):
             self.grid.add_widget(Button(text="", size_hint_y=None, height=30, disabled=True))
 
         # Add day buttons
@@ -249,6 +239,20 @@ class CalendarPopup(Popup):
         selected_day = int(instance.text)
         self.target_input.text = f"{self.year:04d}-{self.month:02d}-{selected_day:02d}"
         self.dismiss()
+
+# -----------------------------
+# Screens
+# -----------------------------
+class DashboardScreen(Screen):
+    total_balance = StringProperty("0.00")
+
+    def on_pre_enter(self):
+        """Update total balance before entering the dashboard"""
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+            c.execute("SELECT SUM(balance) FROM accounts WHERE is_active = 1")
+            total = c.fetchone()[0] or 0.0
+            self.total_balance = f"{total:.2f}"
 
 # -----------------------------
 # Accounts screens
@@ -1681,6 +1685,119 @@ class BudgetSummaryScreen(Screen):
         self.ids.spent_label.text = f"Spent: ${summary['spent']:.2f}"
         self.ids.remaining_label.text = f"Remaining: ${summary['remaining']:.2f}"
 
+class CategoryPieChartScreen(Screen):
+    start_date = StringProperty("")
+    end_date = StringProperty("")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.build_ui()
+
+    def build_ui(self):
+        layout = BoxLayout(orientation="vertical", spacing=10, padding=10)
+
+        # --- Date Selection ---
+        date_layout = BoxLayout(size_hint_y=None, height=40, spacing=10)
+        self.start_input = TextInput(text=self.start_date, hint_text="YYYY-MM-DD", multiline=False)
+        self.end_input = TextInput(text=self.end_date, hint_text="YYYY-MM-DD", multiline=False)
+
+        start_cal_btn = Button(text="Pick Date")
+        start_cal_btn.bind(on_release=lambda x: CalendarPopup(self.start_input).open())
+
+        end_cal_btn = Button(text="Pick Date")
+        end_cal_btn.bind(on_release=lambda x: CalendarPopup(self.end_input).open())
+
+        date_layout.add_widget(Label(text="From:"))
+        date_layout.add_widget(self.start_input)
+        date_layout.add_widget(start_cal_btn)
+        date_layout.add_widget(Label(text="To:"))
+        date_layout.add_widget(self.end_input)
+        date_layout.add_widget(end_cal_btn)
+
+        # --- Charts area ---
+        self.chart_layout = BoxLayout(spacing=10)
+        layout.add_widget(date_layout)
+        layout.add_widget(self.chart_layout)
+
+        # --- Refresh Button ---
+        refresh_btn = Button(text="Update Charts", size_hint_y=None, height=50)
+        refresh_btn.bind(on_release=lambda x: self.update_charts())
+        layout.add_widget(refresh_btn)
+
+        # --- Back Button ---
+        back_btn = Button(text="Back", size_hint_y=None, height=50)
+        back_btn.bind(on_release=self.go_back)
+        layout.add_widget(back_btn)
+
+        self.add_widget(layout)
+
+    def update_charts(self):
+        """Draw side-by-side pie charts from real DB data."""
+        self.chart_layout.clear_widgets()
+        start_input = self.start_input.text
+        end_input = self.end_input.text
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+
+            # --- Allocated budgets per category ---
+            c.execute("""
+                SELECT c.name, SUM(bc.allocated_amount)
+                FROM budgets b
+                JOIN budgeted_categories bc ON b.id = bc.budget_id
+                JOIN categories c ON bc.category_id = c.id
+                WHERE b.start_date BETWEEN ? AND ? AND c.name != 'System'
+                GROUP BY c.name
+            """, (start_input, end_input))
+            budget_data = c.fetchall()
+
+            # --- Actual spending per category ---
+            c.execute("""
+                SELECT c.name, SUM(t.amount)
+                FROM transactions t
+                JOIN categories c ON t.category_id = c.id
+                WHERE t.projected = 0 AND t.date BETWEEN ? AND ? AND c.name != 'System'
+                GROUP BY c.name
+            """, (start_input, end_input))
+            actual_data = c.fetchall()
+
+        # --- Split results into labels + values ---
+        categories_alloc = [row[0] for row in budget_data]
+        allocated = [row[1] for row in budget_data]
+
+        categories_actual = [row[0] for row in actual_data]
+        actual = [abs(row[1]) for row in actual_data]  # ensure positive values
+
+
+        # --- Build pie charts ---
+        fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+
+        if allocated:
+            axs[0].pie(allocated, labels=categories_alloc, autopct='%1.1f%%', startangle=90)
+            axs[0].set_title("Allocated Budget")
+        else:
+            axs[0].set_title("No Budget Data")
+
+        if actual:
+            axs[1].pie(actual, labels=categories_actual, autopct='%1.1f%%', startangle=90)
+            axs[1].set_title("Actual Spending")
+        else:
+            axs[1].set_title("No Actual Data")
+
+        plt.tight_layout()
+
+        # --- Convert matplotlib figure to Kivy Image ---
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png")
+        buf.seek(0)
+        plt.close(fig)
+
+        img = CoreImage(buf, ext="png")
+        self.chart_layout.add_widget(Image(texture=img.texture))
+
+    def go_back(self, instance):
+        self.manager.current = "dashboard"
+
 # -----------------------------
 # App entry point
 # -----------------------------
@@ -1703,6 +1820,7 @@ class BudgetBeeApp(App):
         sm.add_widget(BudgetsScreen(name="budgets"))
         sm.add_widget(BudgetSummaryScreen(name="budget_summary"))
         sm.add_widget(AddBudgetScreen(name="add_budget"))
+        sm.add_widget(CategoryPieChartScreen(name="category_pie_chart"))
         return sm
 
 

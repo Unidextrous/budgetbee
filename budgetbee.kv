@@ -3,6 +3,8 @@
 <DashboardScreen>:
     BoxLayout:
         orientation: "vertical"
+        spacing: 10
+        padding: 10
         Label:
             text: "BudgetBee Dashboard"
             font_size: 32
@@ -21,10 +23,15 @@
         Button:
             text: "Budgets"
             on_release: app.root.current = "budgets"
+        Button:
+            text: "Compare Categories (Pie Chart)"
+            on_release: app.root.current = "category_pie_chart"
 
 <AccountsScreen>:
     BoxLayout:
         orientation: "vertical"
+        spacing: 10
+        padding: 10
         Label:
             text: "Accounts"
             font_size: 28
@@ -43,6 +50,8 @@
 <AddAccountScreen>:
     BoxLayout:
         orientation: "vertical"
+        spacing: 10
+        padding: 10
         TextInput:
             id: owner
             hint_text: "Account Owner"
@@ -63,6 +72,8 @@
 <EditAccountScreen>:
     BoxLayout:
         orientation: "vertical"
+        spacing: 10
+        padding: 10
         TextInput:
             id: owner
             hint_text: "Account Owner"
@@ -83,6 +94,8 @@
 <CategoriesScreen>:
     BoxLayout:
         orientation: "vertical"
+        spacing: 10
+        padding: 10
         Label:
             text: "Categories"
             font_size: 28
@@ -101,6 +114,8 @@
 <AddCategoryScreen>:
     BoxLayout:
         orientation: "vertical"
+        spacing: 10
+        padding: 10
         TextInput:
             id: name
             hint_text: "Category Name"
@@ -124,6 +139,8 @@
 <EditCategoryScreen>:
     BoxLayout:
         orientation: "vertical"
+        spacing: 10
+        padding: 10
         TextInput:
             id: name
             hint_text: "Category Name"
@@ -147,6 +164,8 @@
 <TransactionsScreen>:
     BoxLayout:
         orientation: "vertical"
+        spacing: 10
+        padding: 10
         Label:
             text: "Transactions"
             font_size: 28
@@ -167,6 +186,8 @@
     category_spinner: category_spinner
     BoxLayout:
         orientation: "vertical"
+        spacing: 10
+        padding: 10
         Spinner:
             id: account_spinner
             text: "Select Account"
@@ -204,7 +225,8 @@
 <EditTransactionScreen>
     BoxLayout:
         orientation: "vertical"
-
+        spacing: 10
+        padding: 10
         Spinner:
             id: account_spinner
             text: "Select Account"
@@ -252,6 +274,8 @@
 <BudgetsScreen>:
     BoxLayout:
         orientation: "vertical"
+        spacing: 10
+        padding: 10
         Label:
             text: "Budgets"
             font_size: 28
@@ -270,6 +294,8 @@
 <AddBudgetScreen>:
     BoxLayout:
         orientation: "vertical"
+        spacing: 10
+        padding: 10
         TextInput:
             id: budget_name
             hint_text: "Budget Name"
