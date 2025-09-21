@@ -60,7 +60,7 @@ def init_db():
         c.execute("""
             CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                account_id INTEGER NOT NULL,
+                account_id INTEGER,
                 category_id INTEGER NOT NULL,
                 amount REAL NOT NULL,
                 date TEXT NOT NULL,
@@ -90,6 +90,7 @@ def init_db():
                 budget_id INTEGER NOT NULL,
                 category_id INTEGER NOT NULL,
                 allocated_amount REAL NOT NULL,
+                alloc_desc TEXT,
                 FOREIGN KEY(budget_id) REFERENCES budgets(id),
                 FOREIGN KEY(category_id) REFERENCES categories(id)
             )
@@ -422,7 +423,11 @@ class EditAccountScreen(Screen):
     def save_account(self):
         new_owner = self.ids.owner.text
         new_name = self.ids.name.text
-        new_balance = float(self.ids.balance.text)
+        try:
+            new_balance = float(self.ids.balance.text)
+        except:
+            if not self.ids.balance.text:
+                new_balance = 0
 
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
@@ -436,7 +441,7 @@ class EditAccountScreen(Screen):
             old_balance = row[1]
             old_starting_balance = row[2]
 
-            if not new_owner or not new_name or not new_balance:
+            if not new_owner or not new_name:
                 return
             
             c.execute("""
@@ -1050,14 +1055,17 @@ class BudgetManager:
     # -----------------------------
     # Projected Transactions
     # -----------------------------
-    def add_projected_transaction(self, account_name, category_name, amount, date):
-        if not account_name or not category_name or not amount:
+    def add_projected_transaction(self, category_name, amount, description, date):
+        if not category_name or not amount:
             return
 
         try:
             amount = float(amount)
         except ValueError:
             return
+
+        if not description:
+            description = "No Description"
 
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
@@ -1080,9 +1088,9 @@ class BudgetManager:
 
             # Insert projected transaction
             c.execute("""
-                INSERT INTO transactions (account_id, category_id, amount, date, projected)
+                INSERT INTO transactions (category_id, amount, description, date, projected)
                 VALUES (?, ?, ?, ?, 1)
-            """, (account_id, category_id, amount, date))
+            """, (category_id, amount, description, date))
             txn_id = c.lastrowid
 
             # Link to budget
@@ -1390,18 +1398,10 @@ class BudgetSummaryScreen(Screen):
             c.execute("""
                 SELECT name
                 FROM categories
-                WHERE type = 'Expense' AND name != 'System' AND is_active=1
+                WHERE type = 'Income' AND name != 'System' AND is_active=1
                 ORDER BY type desc, name ASC
             """)
             self.ids.alloc_category_spinner.values = [row[0] for row in c.fetchall()]
-
-            c.execute("""
-                SELECT name
-                FROM accounts
-                WHERE is_active=1
-                ORDER BY owner ASC, name ASC
-            """)
-            self.ids.proj_account_spinner.values = [row[0] for row in c.fetchall()]
 
             c.execute("""
                 SELECT name
@@ -1442,9 +1442,8 @@ class BudgetSummaryScreen(Screen):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("""
-                SELECT t.id, a.name, c.name, t.amount, t.date, t.status
+                SELECT t.id, c.name, t.amount, t.description, t.date, t.status
                 FROM transactions t
-                JOIN accounts a ON t.account_id = a.id
                 JOIN categories c ON t.category_id = c.id
                 JOIN budget_transactions bt ON t.id = bt.transaction_id
                 WHERE bt.budget_id=? AND t.projected=1
@@ -1458,7 +1457,7 @@ class BudgetSummaryScreen(Screen):
 
             # Transaction label
             label = Label(
-                text=f"{txn[1]} | {txn[2]} | ${txn[3]:.2f} | {txn[4]}",
+                text=f"{txn[1]} | ${txn[2]:.2f} | {txn[3]} | {txn[4]}",
                 halign="center",
                 valign="middle"
             )
@@ -1510,7 +1509,7 @@ class BudgetSummaryScreen(Screen):
 
         self.ids.projected_list.bind(minimum_height=self.ids.projected_list.setter('height'))
 
-    def add_budgeted_category(self, category_name, amount):
+    def add_budgeted_category(self, category_name, amount, desc):
         if not category_name or not amount:
             return
 
@@ -1518,6 +1517,9 @@ class BudgetSummaryScreen(Screen):
             amount = float(amount)
         except ValueError:
             return
+        
+        if not desc:
+            desc = "No Description"
 
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
@@ -1528,37 +1530,34 @@ class BudgetSummaryScreen(Screen):
             category_id = row[0]
 
             c.execute("""
-                INSERT INTO budgeted_categories (budget_id, category_id, allocated_amount)
-                VALUES (?, ?, ?)
-            """, (self.budget_id, category_id, amount))
+                INSERT INTO budgeted_categories (budget_id, category_id, allocated_amount, alloc_desc)
+                VALUES (?, ?, ?, ?)
+            """, (self.budget_id, category_id, amount, desc))
             conn.commit()
 
         self.ids.alloc_category_spinner.text = "Select Category"
         self.ids.alloc_amount.text = ""
+        self.ids.alloc_desc.text = ""
         self.load_allocated_categories()
         self.update_summary_labels()
 
-    def add_projected_transaction(self, account_name, category_name, amount, date):
-        if not account_name or not category_name or not amount:
+    def add_projected_transaction(self, category_name, amount, description, date):
+        if not category_name or not amount:
             return
 
         try:
             amount = float(amount)
         except ValueError:
             return
+        
+        if not description:
+            description = "No Description"
 
         if not date:
             date = datetime.now().strftime("%Y-%m-%d")
 
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            # Get account ID
-            c.execute("SELECT id FROM accounts WHERE name=?", (account_name,))
-            row = c.fetchone()
-            if not row:
-                return
-            account_id = row[0]
-
             # Get category ID
             c.execute("SELECT id FROM categories WHERE name=?", (category_name,))
             row = c.fetchone()
@@ -1568,18 +1567,18 @@ class BudgetSummaryScreen(Screen):
 
             # Insert projected transaction
             c.execute("""
-                INSERT INTO transactions (account_id, category_id, amount, date, projected, status)
+                INSERT INTO transactions (category_id, amount, description, date, projected, status)
                 VALUES (?, ?, ?, ?, 1, 'Pending')
-            """, (account_id, category_id, amount, date))
+            """, (category_id, amount, description, date))
             txn_id = c.lastrowid
 
             c.execute("INSERT INTO budget_transactions (budget_id, transaction_id) VALUES (?, ?)",
                       (self.budget_id, txn_id))
             conn.commit()
 
-        self.ids.proj_account_spinner.text = "Select Account"
         self.ids.proj_category_spinner.text = "Select Category"
         self.ids.proj_amount.text = ""
+        self.ids.proj_desc.text = ""
         self.ids.proj_date.text = ""
         self.load_projected_transactions()
         self.update_summary_labels()
