@@ -11,6 +11,23 @@
         Label:
             text: "Total Balance: $" + root.total_balance
             font_size: 24
+            size_hint_y: None
+            height: 16
+        Label:
+            text: "Total Checking: $" + root.checking_balance
+            font_size: 16
+            size_hint_y: None
+            height: 16
+        Label:
+            text: "Total Savings: $" + root.savings_balance
+            font_size: 16
+            size_hint_y: None
+            height: 16
+        Label:
+            text: "Total Benefits: $" + root.benefits_balance
+            font_size: 16
+            size_hint_y: None
+            height: 16
         Button:
             text: "Accounts"
             on_release: app.root.current = "accounts"
@@ -52,6 +69,10 @@
         orientation: "vertical"
         spacing: 10
         padding: 10
+        Spinner:
+            id: type_spinner
+            text: "Checking"   # default
+            values: ["Checking", "Savings", "Benefits"]
         TextInput:
             id: owner
             hint_text: "Account Owner"
@@ -74,6 +95,9 @@
         orientation: "vertical"
         spacing: 10
         padding: 10
+        Spinner:
+            id: type_spinner
+            values: ["Checking", "Savings", "Benefits"]
         TextInput:
             id: owner
             hint_text: "Account Owner"

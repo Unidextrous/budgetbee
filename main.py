@@ -33,6 +33,7 @@ def init_db():
         c.execute("""
             CREATE TABLE IF NOT EXISTS accounts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT DEFAULT 'Checking',
                 owner TEXT NOT NULL,
                 name TEXT NOT NULL UNIQUE,
                 balance REAL NOT NULL,
@@ -246,14 +247,30 @@ class CalendarPopup(Popup):
 # -----------------------------
 class DashboardScreen(Screen):
     total_balance = StringProperty("0.00")
+    checking_balance = StringProperty("0.00")
+    savings_balance = StringProperty("0.00")
+    benefits_balance = StringProperty("0.00")
 
     def on_pre_enter(self):
         """Update total balance before entering the dashboard"""
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
+
             c.execute("SELECT SUM(balance) FROM accounts WHERE is_active = 1")
             total = c.fetchone()[0] or 0.0
             self.total_balance = f"{total:.2f}"
+
+            c.execute("SELECT SUM(balance) FROM accounts WHERE type = 'Checking' AND is_active = 1")
+            total_checking = c.fetchone()[0] or 0.0
+            self.checking_balance = f"{total_checking:.2f}"
+
+            c.execute("SELECT SUM(balance) FROM accounts WHERE type = 'Savings' AND is_active = 1")
+            total_savings = c.fetchone()[0] or 0.0
+            self.savings_balance = f"{total_savings:.2f}"
+
+            c.execute("SELECT SUM(balance) FROM accounts WHERE type = 'Benefits' AND is_active = 1")
+            total_benefits = c.fetchone()[0] or 0.0
+            self.benefits_balance = f"{total_benefits:.2f}"
 
 # -----------------------------
 # Accounts screens
@@ -266,7 +283,7 @@ class AccountsScreen(Screen):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("""
-                SELECT id, owner, name, balance
+                SELECT id, owner, name, balance, type
                 FROM accounts
                 WHERE is_active = 1
                 ORDER BY owner ASC, name ASC
@@ -286,7 +303,7 @@ class AccountsScreen(Screen):
                 amount_display = f"-${-acct[3]:.2f}"
 
             # Display account info
-            label = Label(text=f"{acct[1]} | {acct[2]} | {amount_display}", halign="center", valign="middle")
+            label = Label(text=f"{acct[1]} | {acct[2]} | {amount_display} | {acct[4]}", halign="center", valign="middle")
             label.bind(size=label.setter("text_size"))
 
             # Edit button
@@ -339,12 +356,15 @@ class AccountsScreen(Screen):
 
 class AddAccountScreen(Screen):
     def on_pre_enter(self):
+        self.ids.type_spinner.text = "Checking"
         self.ids.owner.text = ""
         self.ids.name.text = ""
         self.ids.balance.text = ""
 
     """Add a new account or reactivate a deleted account"""
     def add_account(self, owner, name, balance):
+        acct_type = self.ids.type_spinner.text
+
         if not owner or not name:
             return  # Validate input
 
@@ -390,9 +410,10 @@ class AddAccountScreen(Screen):
                     conn.commit()
             else:
                 # New account
-                c.execute(
-                    "INSERT INTO accounts (owner, name, balance, starting_balance, is_active) VALUES (?, ?, ?, ?, 1)",
-                    (owner, name, balance, balance)
+                c.execute("""
+                    INSERT INTO accounts (type, owner, name, balance, starting_balance, is_active)
+                    VALUES (?, ?, ?, ?, ?, 1)""",
+                    (acct_type, owner, name, balance, balance)
                 )
                 account_id = c.lastrowid
 
@@ -413,14 +434,16 @@ class EditAccountScreen(Screen):
         self.acct_id = acct_id
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("SELECT owner, name, balance FROM accounts WHERE id=?", (acct_id,))
+            c.execute("SELECT type, owner, name, balance FROM accounts WHERE id=?", (acct_id,))
             row = c.fetchone()
             if row:
-                self.ids.owner.text = row[0]
-                self.ids.name.text = row[1]
-                self.ids.balance.text = str(row[2])
+                self.ids.type_spinner.text = row[0]
+                self.ids.owner.text = row[1]
+                self.ids.name.text = row[2]
+                self.ids.balance.text = str(row[3])
 
     def save_account(self):
+        new_type = self.ids.type_spinner.text
         new_owner = self.ids.owner.text
         new_name = self.ids.name.text
         try:
@@ -433,22 +456,23 @@ class EditAccountScreen(Screen):
             c = conn.cursor()
 
             # Get old account name
-            c.execute("SELECT name, balance, starting_balance FROM accounts WHERE id=?", (self.acct_id,))
+            c.execute("SELECT type, name, balance, starting_balance FROM accounts WHERE id=?", (self.acct_id,))
 
             row = c.fetchone()
             
-            old_name = row[0]
-            old_balance = row[1]
-            old_starting_balance = row[2]
+            old_type = row[0]
+            old_name = row[1]
+            old_balance = row[2]
+            old_starting_balance = row[3]
 
-            if not new_owner or not new_name:
+            if not new_type or not new_owner or not new_name:
                 return
             
             c.execute("""
                 UPDATE accounts
-                SET owner=?, name=?, balance=?
+                SET type=?, owner=?, name=?, balance=?
                 WHERE id=?
-                """, (new_owner, new_name, new_balance, self.acct_id)
+                """, (new_type, new_owner, new_name, new_balance, self.acct_id)
             )
 
             # If the name changed, update system transactions
@@ -676,7 +700,7 @@ class TransactionsScreen(Screen):
                 FROM transactions t
                 JOIN accounts a ON t.account_id = a.id
                 JOIN categories c ON t.category_id = c.id
-                WHERE projected = 0
+                WHERE projected = 0 AND c.name != 'System'
                 ORDER BY t.date DESC
             """)
             self.transactions = c.fetchall()
@@ -1415,7 +1439,7 @@ class BudgetSummaryScreen(Screen):
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
             c.execute("""
-                SELECT bc.id, c.name, bc.allocated_amount
+                SELECT bc.id, c.name, bc.allocated_amount, bc.alloc_desc
                 FROM budgeted_categories bc
                 JOIN categories c ON bc.category_id = c.id
                 WHERE bc.budget_id=?
@@ -1425,7 +1449,7 @@ class BudgetSummaryScreen(Screen):
         self.ids.allocated_list.clear_widgets()
         for bc in self.allocated_categories:
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
-            label = Label(text=f"{bc[1]} | ${bc[2]:.2f}", halign="center", valign="middle")
+            label = Label(text=f"{bc[1]} | ${bc[2]:.2f} | {bc[3]}", halign="center", valign="middle")
             label.bind(size=label.setter("text_size"))
 
             delete_btn = Button(text="X", size_hint_x=None, width=40)
