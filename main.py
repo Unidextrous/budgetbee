@@ -279,8 +279,13 @@ class AccountsScreen(Screen):
         for acct in self.accounts:
             box = BoxLayout(orientation="horizontal", size_hint_y=None, height=40)
 
+            if acct[3] >= 0:
+                amount_display = f"${acct[3]:.2f}"
+            else:
+                amount_display = f"-${-acct[3]:.2f}"
+
             # Display account info
-            label = Label(text=f"{acct[1]} | {acct[2]} | {acct[3]:.2f}", halign="center", valign="middle")
+            label = Label(text=f"{acct[1]} | {acct[2]} | {amount_display}", halign="center", valign="middle")
             label.bind(size=label.setter("text_size"))
 
             # Edit button
