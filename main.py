@@ -285,7 +285,7 @@ class AccountsScreen(Screen):
 
             # Edit button
             edit_btn = Button(text="Edit", size_hint_x=None)
-            edit_btn.bind(on_release=lambda btn: self.edit_account(self.acct_id))
+            edit_btn.bind(on_release=lambda btn, acct_id=acct[0]: self.edit_account(acct_id))
 
             # Delete button
             delete_btn = Button(text="X", size_hint_x=None, width=40)
@@ -302,7 +302,7 @@ class AccountsScreen(Screen):
 
     def edit_account(self, acct_id):
         edit_screen = self.manager.get_screen("edit_account")
-        edit_screen.load_account(self.acct_id)
+        edit_screen.load_account(acct_id)
         self.manager.current = "edit_account"
 
     def delete_account(self, acct_id):
@@ -504,7 +504,7 @@ class CategoriesScreen(Screen):
 
             # Edit button
             edit_btn = Button(text="Edit", size_hint_x=None)
-            edit_btn.bind(on_release=lambda btn: self.edit_category(self.category_id))
+            edit_btn.bind(on_release=lambda btn, cat_id=cat[0]: self.edit_category(cat_id))
 
             # Delete button
             delete_btn = Button(text="X", size_hint_x=None,width=40)
@@ -521,7 +521,7 @@ class CategoriesScreen(Screen):
 
     def edit_category(self, category_id):
         edit_screen = self.manager.get_screen("edit_category")
-        edit_screen.load_category(self.category_id)
+        edit_screen.load_category(category_id)
         self.manager.current = "edit_category"
 
     def delete_category(self, cat_id):
