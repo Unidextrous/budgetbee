@@ -1096,13 +1096,6 @@ class BudgetManager:
 
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            # Get account ID
-            c.execute("SELECT id FROM accounts WHERE name=?", (account_name,))
-            row = c.fetchone()
-            if not row:
-                return
-            account_id = row[0]
-
             # Get category ID
             c.execute("SELECT id FROM categories WHERE name=?", (category_name,))
             row = c.fetchone()
