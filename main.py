@@ -69,10 +69,27 @@ def init_db():
                 projected INTEGER DEFAULT 0,
                 fulfilled INTEGER DEFAULT 0,
                 status TEXT DEFAULT "Pending",
+                is_transfer INTEGER DEFAULT 0,
                 FOREIGN KEY(account_id) REFERENCES accounts(id),
                 FOREIGN KEY(category_id) REFERENCES categories(id)
             )
         """)
+
+        # Check if "Transfer To" exists
+        c.execute("SELECT id FROM categories WHERE name=?", ("Transfer To",))
+        if not c.fetchone():
+            c.execute("""
+                INSERT INTO categories (name, type, is_active)
+                VALUES (?, ?, 1)
+            """, ("Transfer To", "Expense"))
+        
+        # Check if "Transfer From" exists
+        c.execute("SELECT id FROM categories WHERE name=?", ("Transfer From",))
+        if not c.fetchone():
+            c.execute("""
+                INSERT INTO categories (name, type, is_active)
+                VALUES (?, ?, 1)
+            """, ("Transfer From", "Income"))
 
         # Budgets table
         c.execute("""
@@ -522,7 +539,7 @@ class CategoriesScreen(Screen):
             c.execute("""
                 SELECT id, name, type
                 FROM categories
-                WHERE name != 'System' AND is_active = 1
+                WHERE name != 'System' AND name != 'Transfer To' AND name != 'Transfer From' AND is_active = 1
                 ORDER BY type DESC, name ASC""")
             self.categories = c.fetchall()
 
@@ -850,11 +867,16 @@ class AddTransactionScreen(Screen):
             elif category_type == "Expense":
                 amount = -float(amount)
 
+            if category_name in ["Transfer To", "Transfer From"]:
+                is_transfer = 1
+            else:
+                is_transfer = 0
+
             # Insert the transaction
             c.execute("""
-                INSERT INTO transactions (account_id, category_id, amount, date, description)
-                VALUES (?, ?, ?, ?, ?)
-            """, (account_id, category_id, float(amount), date, description))
+                INSERT INTO transactions (account_id, category_id, amount, date, description, is_transfer)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (account_id, category_id, float(amount), date, description, is_transfer))
         
             # Get the ID of the transaction we just added
             transaction_id = c.lastrowid
@@ -918,11 +940,25 @@ class EditTransactionScreen(Screen):
             self.ids.account_spinner.text = account_name
 
             # Populate category spinner, filter out 'System'
-            self.ids.category_spinner.values = self.get_category_names()
-            if category_name in self.ids.category_spinner.values:
+            c.execute("""
+                SELECT name, type
+                FROM categories
+                WHERE name != 'System' AND is_active = 1
+                ORDER BY type desc, name ASC
+            """)
+            rows = c.fetchall()
+
+            categories = []
+            for row in rows:
+                name = str(row[0]) if row[0] else "Unnamed"
+                cat_type = str(row[1]) if row[1] else "Unknown"
+                categories.append(f"{name} - ({cat_type})")
+                
+            self.ids.category_spinner.values = categories
+            if category_name:
                 self.ids.category_spinner.text = category_name
             else:
-                self.ids.category_spinner.text = self.ids.category_spinner.values[0]
+                self.ids.category_spinner.text = "Select Category"
 
             if amount >= 0:
                 self.ids.amount.text = str(amount)
@@ -936,16 +972,10 @@ class EditTransactionScreen(Screen):
             c = conn.cursor()
             c.execute("SELECT name FROM accounts")
             return [row[0] for row in c.fetchall()]
-
-    def get_category_names(self):
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-            c.execute("SELECT name FROM categories WHERE name != 'System'")
-            return [row[0] for row in c.fetchall()]
         
     def save_transaction(self):
         new_account = self.ids.account_spinner.text
-        new_category = self.ids.category_spinner.text
+        new_category = self.ids.category_spinner.text.split(" -")[0]
         new_amount = float(self.ids.amount.text)
         new_date = self.ids.date.text
         new_description = self.ids.description.text
@@ -959,11 +989,20 @@ class EditTransactionScreen(Screen):
 
             c.execute("SELECT id, type FROM categories WHERE name = ?", (new_category,))
             row = c.fetchone()
-            new_category_id = row[0]
-            new_category_type = row[1]
-
+            if row:
+                new_category_id = row[0]
+                new_category_name = new_category
+                new_category_type = row[1]
+            else:
+                return
+            
             if new_category_type == "Expense":
                 new_amount = -new_amount
+
+            if new_category_name in ["Transfer To", "Transfer From"]:
+                is_transfer = 1
+            else:
+                is_transfer = 0
 
             # Get old transaction
             c.execute("SELECT account_id, category_id, amount, date, description FROM transactions WHERE id=?", (self.transaction_id,))
@@ -976,10 +1015,15 @@ class EditTransactionScreen(Screen):
 
             # --- Update transaction row ---
             c.execute("""
-                UPDATE transactions
-                SET account_id=?, category_id=?, amount=?, date=?, description=?
-                WHERE id=?
-            """, (new_account_id, new_category_id, new_amount, new_date, new_description, self.transaction_id))
+                INSERT INTO transactions
+                (account_id, category_id, amount, date, description, is_transfer)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (new_account_id, new_category_id, new_amount, new_date, new_description, is_transfer))
+
+            c.execute("""
+                DELETE FROM transactions WHERE id=?""",
+                (self.transaction_id,)
+            )
 
             # --- If account changed, adjust both old and new balances ---
             if old_account_id != new_account_id:
@@ -1165,6 +1209,7 @@ class BudgetManager:
                     FROM transactions
                     WHERE projected=0 AND amount<0
                     AND date BETWEEN ? AND ?
+                    AND is_transfer = 0
                 """, (start_date, end_date))
             else:
                 c.execute("""
@@ -1172,6 +1217,7 @@ class BudgetManager:
                     FROM transactions
                     WHERE projected=0 AND amount<0
                     AND date >= ?
+                    AND is_transfer = 0
                 """, (start_date,))
             
             spent = c.fetchone()[0] or 0
