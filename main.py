@@ -1752,7 +1752,7 @@ class BudgetSummaryScreen(Screen):
         self.ids.spent_label.text = f"Spent: ${summary['spent']:.2f}"
         self.ids.remaining_label.text = f"Remaining: ${summary['remaining']:.2f}"
 
-class CategoryPieChartScreen(Screen):
+class ExpenseDistributionScreen(Screen):
     start_date = StringProperty("")
     end_date = StringProperty("")
 
@@ -1809,11 +1809,15 @@ class CategoryPieChartScreen(Screen):
 
             # --- Allocated budgets per category ---
             c.execute("""
-                SELECT c.name, SUM(bc.allocated_amount)
-                FROM budgets b
-                JOIN budgeted_categories bc ON b.id = bc.budget_id
-                JOIN categories c ON bc.category_id = c.id
-                WHERE b.start_date BETWEEN ? AND ? AND c.name != 'System'
+                SELECT c.name, SUM(t.amount)
+                FROM transactions t
+                JOIN categories c ON t.category_id = c.id
+                WHERE t.date BETWEEN ? AND ?
+                AND c.type = 'Expense'   -- 👈 Only expenses
+                AND c.name != 'System'
+                AND c.name != 'Transfer To'
+                AND c.name != 'Transfer From'
+                AND t.projected = 1
                 GROUP BY c.name
             """, (start_input, end_input))
             budget_data = c.fetchall()
@@ -1823,14 +1827,20 @@ class CategoryPieChartScreen(Screen):
                 SELECT c.name, SUM(t.amount)
                 FROM transactions t
                 JOIN categories c ON t.category_id = c.id
-                WHERE t.projected = 0 AND t.date BETWEEN ? AND ? AND c.name != 'System'
+                WHERE t.projected = 0
+                AND t.date BETWEEN ? AND ?
+                AND c.type = 'Expense'   -- 👈 Only expenses
+                AND c.name != 'System'
+                AND c.name != 'Transfer To'
+                AND c.name != 'Transfer From'
+                AND t.projected = 0
                 GROUP BY c.name
             """, (start_input, end_input))
             actual_data = c.fetchall()
 
         # --- Split results into labels + values ---
-        categories_alloc = [row[0] for row in budget_data]
-        allocated = [row[1] for row in budget_data]
+        categories_proj = [row[0] for row in budget_data]
+        projected = [row[1] for row in budget_data]
 
         categories_actual = [row[0] for row in actual_data]
         actual = [abs(row[1]) for row in actual_data]  # ensure positive values
@@ -1839,8 +1849,8 @@ class CategoryPieChartScreen(Screen):
         # --- Build pie charts ---
         fig, axs = plt.subplots(1, 2, figsize=(8, 4))
 
-        if allocated:
-            axs[0].pie(allocated, labels=categories_alloc, autopct='%1.1f%%', startangle=90)
+        if projected:
+            axs[0].pie(projected, labels=categories_proj, autopct='%1.1f%%', startangle=90)
             axs[0].set_title("Allocated Budget")
         else:
             axs[0].set_title("No Budget Data")
@@ -1887,7 +1897,7 @@ class BudgetBeeApp(App):
         sm.add_widget(BudgetsScreen(name="budgets"))
         sm.add_widget(BudgetSummaryScreen(name="budget_summary"))
         sm.add_widget(AddBudgetScreen(name="add_budget"))
-        sm.add_widget(CategoryPieChartScreen(name="category_pie_chart"))
+        sm.add_widget(ExpenseDistributionScreen(name="category_pie_chart"))
         return sm
 
 
