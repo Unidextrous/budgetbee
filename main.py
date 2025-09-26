@@ -1752,6 +1752,9 @@ class BudgetSummaryScreen(Screen):
         self.ids.spent_label.text = f"Spent: ${summary['spent']:.2f}"
         self.ids.remaining_label.text = f"Remaining: ${summary['remaining']:.2f}"
 
+class VisualizationsScreen(Screen):
+    pass
+
 class ExpenseDistributionScreen(Screen):
     start_date = StringProperty("")
     end_date = StringProperty("")
@@ -1875,6 +1878,127 @@ class ExpenseDistributionScreen(Screen):
     def go_back(self, instance):
         self.manager.current = "dashboard"
 
+class BudgetVsSpendingScreen(Screen):
+    start_date = StringProperty("")
+    end_date = StringProperty("")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.build_ui()
+
+    def build_ui(self):
+        layout = BoxLayout(orientation="vertical", spacing=10, padding=10)
+
+        # --- Date Selection ---
+        date_layout = BoxLayout(size_hint_y=None, height=40, spacing=10)
+        self.start_input = TextInput(text=self.start_date, hint_text="YYYY-MM-DD", multiline=False)
+        self.end_input = TextInput(text=self.end_date, hint_text="YYYY-MM-DD", multiline=False)
+
+        start_cal_btn = Button(text="Pick Date")
+        start_cal_btn.bind(on_release=lambda x: CalendarPopup(self.start_input).open())
+
+        end_cal_btn = Button(text="Pick Date")
+        end_cal_btn.bind(on_release=lambda x: CalendarPopup(self.end_input).open())
+
+        date_layout.add_widget(Label(text="From:"))
+        date_layout.add_widget(self.start_input)
+        date_layout.add_widget(start_cal_btn)
+        date_layout.add_widget(Label(text="To:"))
+        date_layout.add_widget(self.end_input)
+        date_layout.add_widget(end_cal_btn)
+
+        # --- Chart area ---
+        self.chart_layout = BoxLayout(spacing=10)
+        layout.add_widget(date_layout)
+        layout.add_widget(self.chart_layout)
+
+        # --- Refresh Button ---
+        refresh_btn = Button(text="Update Chart", size_hint_y=None, height=50)
+        refresh_btn.bind(on_release=lambda x: self.update_chart())
+        layout.add_widget(refresh_btn)
+
+        # --- Back Button ---
+        back_btn = Button(text="Back", size_hint_y=None, height=50)
+        back_btn.bind(on_release=self.go_back)
+        layout.add_widget(back_btn)
+
+        self.add_widget(layout)
+
+    def update_chart(self):
+        """Draw a bar chart comparing projected vs actual spending by category + totals."""
+        self.chart_layout.clear_widgets()
+        start_input = self.start_input.text
+        end_input = self.end_input.text
+
+        with sqlite3.connect(DB_NAME) as conn:
+            c = conn.cursor()
+
+            # --- Projected (budgeted) spending ---
+            c.execute("""
+                SELECT c.name, SUM(t.amount)
+                FROM transactions t
+                JOIN categories c ON t.category_id = c.id
+                WHERE t.date BETWEEN ? AND ?
+                AND c.type = 'Expense'
+                AND c.name != 'System'
+                AND t.projected = 1
+                AND t.is_transfer = 0
+                GROUP BY c.name
+            """, (start_input, end_input))
+            proj_data = c.fetchall()
+
+            # --- Actual spending ---
+            c.execute("""
+                SELECT c.name, SUM(t.amount)
+                FROM transactions t
+                JOIN categories c ON t.category_id = c.id
+                WHERE t.date BETWEEN ? AND ?
+                AND c.type = 'Expense'
+                AND c.name != 'System'
+                AND t.projected = 0
+                AND t.is_transfer = 0
+                GROUP BY c.name
+            """, (start_input, end_input))
+            actual_data = c.fetchall()
+
+        # --- Organize into dicts for easy lookup ---
+        proj_dict = {row[0]: row[1] for row in proj_data}
+        actual_dict = {row[0]: row[1] for row in actual_data}
+
+        # --- Union of categories from both sets ---
+        categories = sorted(set(proj_dict.keys()) | set(actual_dict.keys()))
+
+        projected = [proj_dict.get(cat, 0) for cat in categories]
+        actual = [abs(actual_dict.get(cat, 0)) for cat in categories]
+
+        # --- Build bar chart ---
+        x = range(len(categories))
+        width = 0.35
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.bar([i - width/2 for i in x], projected, width, label="Projected")
+        ax.bar([i + width/2 for i in x], actual, width, label="Actual")
+
+        ax.set_ylabel("Amount")
+        ax.set_title("Budget vs. Spending")
+        ax.set_xticks(x)
+        ax.set_xticklabels(categories, rotation=45, ha="right")
+        ax.legend()
+
+        plt.tight_layout()
+
+        # --- Convert matplotlib figure to Kivy Image ---
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png")
+        buf.seek(0)
+        plt.close(fig)
+
+        img = CoreImage(buf, ext="png")
+        self.chart_layout.add_widget(Image(texture=img.texture))
+
+    def go_back(self, instance):
+        self.manager.current = "dashboard"
+
 # -----------------------------
 # App entry point
 # -----------------------------
@@ -1897,7 +2021,9 @@ class BudgetBeeApp(App):
         sm.add_widget(BudgetsScreen(name="budgets"))
         sm.add_widget(BudgetSummaryScreen(name="budget_summary"))
         sm.add_widget(AddBudgetScreen(name="add_budget"))
-        sm.add_widget(ExpenseDistributionScreen(name="category_pie_chart"))
+        sm.add_widget(VisualizationsScreen(name="visualizations"))
+        sm.add_widget(ExpenseDistributionScreen(name="expense_distribution"))
+        sm.add_widget(BudgetVsSpendingScreen(name="budget_vs_spending"))
         return sm
 
 

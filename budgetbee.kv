@@ -41,8 +41,8 @@
             text: "Budgets"
             on_release: app.root.current = "budgets"
         Button:
-            text: "Compare Categories (Pie Chart)"
-            on_release: app.root.current = "category_pie_chart"
+            text: "Visualizations"
+            on_release: app.root.current = "visualizations"
 
 <AccountsScreen>:
     BoxLayout:
@@ -478,3 +478,21 @@
             size_hint_y: None
             height: 40
             on_release: app.root.current = "budgets"
+
+<VisualizationsScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 10
+        padding: 10
+        Label:
+            text: "Visualizations"
+            font_size: 32
+        Button:
+            text: "Expense Distribution (Pie Chart)"
+            on_release: app.root.current = "expense_distribution"
+        Button:
+            text: "Budget vs Spending (Bar Graph)"
+            on_release: app.root.current = "budget_vs_spending"
+        Button:
+            text: "Back"
+            on_release: app.root.current = "dashboard"
